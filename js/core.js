@@ -68,7 +68,7 @@
     voiceBus() {
       const c = this.ac(); if (!c) return null;
       if (!this.bus) { try { const g = c.createGain(), lim = c.createDynamicsCompressor(); lim.threshold.value = -8; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .2; g.connect(lim); lim.connect(c.destination); this.bus = g; } catch (e) { return null; } }
-      this.bus.gain.value = vol('voice') * 2; return this.bus;
+      this.bus.gain.value = vol('voice') * 2.2; return this.bus;
     },
     lruList: [],
     lru(url) { this.lruList.push(url); while (this.lruList.length > 80) this.buf.delete(this.lruList.shift()); },
@@ -79,14 +79,16 @@
   const SFX_ALIAS = { back: 'close', switch: 'click', scroll: 'whoosh' }; // 没有单独素材的音效
   // 各首背景音乐的响度不一样（最多差 7 dB），按实测响度拉平到同一水平
   const MUSIC_GAIN = { happy: .75, frog: 1, magic: .54, quaint: .74, smore: .55, summer: .46, battle: .63, town: .87, cave: .74, race: .93, drive: .48 };
-  // 家长中心可调的三路音量（0-100），默认：音乐偏小、朗读偏大
-  const VOL_DEF = { music: 45, voice: 80, sfx: 70 };
+  // 齿轮设置里小朋友自己可调的三路音量（0-100），默认：音乐偏小、朗读偏大
+  const VOL_DEF = { music: 35, voice: 90, sfx: 70 };
   const vol = k => { const p = Store.p, v = p && p.settings.vol && p.settings.vol[k]; return (v == null ? VOL_DEF[k] : v) / 100; };
   const Audio2 = {
     cache: {}, music: null, musicName: null, unlocked: false, ducked: false,
     VOL_DEF, vol,
     musicLevel() { return vol('music') * .7 * (MUSIC_GAIN[this.musicName] || .7) * (this.ducked ? .3 : 1); },
-    setVol(k, v) { const p = Store.p; if (!p) return; p.settings.vol = Object.assign({}, p.settings.vol, { [k]: Math.max(0, Math.min(100, Math.round(v))) }); Store.save(); if (k === 'music' && this.music) this.music.volume = this.musicLevel(); if (k === 'voice') Bank.voiceBus(); },
+    // 音乐音量：接了 Web Audio 音量节点就调节点（iPhone 上 <audio>.volume 是只读的，永远是 1），否则调 volume
+    level(a, v) { if (a._g) a._g.gain.value = v; else a.volume = Math.min(1, v); },
+    setVol(k, v) { const p = Store.p; if (!p) return; p.settings.vol = Object.assign({}, p.settings.vol, { [k]: Math.max(0, Math.min(100, Math.round(v))) }); Store.save(); if (k === 'music' && this.music) this.level(this.music, this.musicLevel()); if (k === 'voice') Bank.voiceBus(); },
     sfx(name, vol0) {
       const p = Store.p; if (p && !p.settings.sfx) return;
       name = SFX_ALIAS[name] || name;
@@ -105,13 +107,16 @@
       const url = 'assets/music/' + name + '.mp3';
       // 先整份下载进内存再播，之后循环播放和断网都不受影响
       if (Bank.http && !Bank.has(url)) { Bank.load(url).then(ok => { if (ok && this.musicName === name && !this.music) this.playMusic(name); }); return; }
-      const a = new Audio(Bank.src(url)); a.loop = true; a.volume = 0; a.dataset.n = name; this.music = a;
+      const a = new Audio(Bank.src(url)); a.loop = true; a.dataset.n = name; this.music = a;
+      const c = Bank.ac();
+      if (c && Bank.has(url)) try { const s = c.createMediaElementSource(a), g = c.createGain(); g.gain.value = 0; s.connect(g); g.connect(c.destination); a._s = s; a._g = g; } catch (e) {}
+      if (!a._g) a.volume = 0;
       a.play().then(() => this.fade(a, this.musicLevel())).catch(() => {});
     },
-    fade(a, to) { const st = a.volume, t0 = performance.now(); const f = () => { if (a !== this.music) return; const k = Math.min(1, (performance.now() - t0) / 900); a.volume = st + (to - st) * k; if (k < 1) requestAnimationFrame(f); }; f(); },
+    fade(a, to) { const st = a._g ? a._g.gain.value : a.volume, t0 = performance.now(); const f = () => { if (a !== this.music) return; const k = Math.min(1, (performance.now() - t0) / 900); this.level(a, st + (to - st) * k); if (k < 1) requestAnimationFrame(f); }; f(); },
     // 朗读时把音乐压低，读完恢复
-    duck(on) { this.ducked = !!on; if (this.music) this.music.volume = this.musicLevel(); },
-    stopMusic() { if (this.music) { this.music.pause(); this.music = null; } },
+    duck(on) { this.ducked = !!on; if (this.music) this.level(this.music, this.musicLevel()); },
+    stopMusic() { const a = this.music; if (!a) return; a.pause(); if (a._s) try { a._s.disconnect(); a._g.disconnect(); } catch (e) {} this.music = null; },
   };
 
   /* ---------- 语音：只用预生成的 edge-tts 真人感录音，不用浏览器机器朗读 ----------

@@ -9,13 +9,22 @@
 /* 只给原本是静态定位的选项容器加 relative（漂浮 / 拖拽类元素本身就是 absolute，不能覆盖） */
 .choice, .tile, .cnode { position: relative; }
 .food .csay, .sortitem .csay { display: none; }
-.choices.compact .csay, .tile .csay, .cnode .csay { width: 24px; height: 24px; right: 3px; bottom: 3px; }
-.choices.compact .csay .emo, .tile .csay .emo, .cnode .csay .emo { width: 14px; height: 14px; }
+.choices.compact .csay, .tile .csay, .cnode .csay, .mface .csay { width: 24px; height: 24px; right: 3px; bottom: 3px; }
+.choices.compact .csay .emo, .tile .csay .emo, .cnode .csay .emo, .mface .csay .emo { width: 14px; height: 14px; }
+/* 选项卡片（大选项、拼词块、连线点、翻牌）：喇叭挂在右上角外沿，像角标一样，不压文字和图片 */
+:is(.choice, .tile, .cnode, .mface) > .csay { top: -9px; right: -9px; bottom: auto; box-shadow: 0 0 0 2px #2b3a67, 0 2px 6px rgba(0,0,0,.18); opacity: 1; }
+body:not([data-theme="kid"]) :is(.choice, .tile, .cnode, .mface) > .csay { box-shadow: 0 2px 6px rgba(0,0,0,.28); }
+.choice:has(> .csay) { padding: 17px 16px 12px; } .choices.compact .choice:has(> .csay) { padding: 12px 14px 8px; } /* 长选项折行时，第一行不伸到角标底下 */
+.p3m .choice > .csay { top: 6px; right: 10px; box-shadow: 0 0 0 2px #000; } /* 怪盗风选项是斜切形（clip-path），挂在外面会被切掉 */
+/* 横条选项（颜料格、炸弹引线）：喇叭放在条的右端，竖直居中，条子右边留出位置 */
+.px-sw, .bm-end { position: relative; }
+.px-sw:has(.csay), .bm-end:has(.csay) { padding-right: 44px; }
+:is(.px-sw, .bm-end) .csay { top: calc(50% - 15px); bottom: auto; right: 7px; }
 .mcard .mface.back .csay, .sortitem .csay { display: none; }
 /* 漂浮 / 移动中的目标、会被喇叭挡住内容的小标签不放喇叭（「读选项」仍可读） */
 .bub .csay, .bal .csay, .flabel .csay, .sign .csay, .drop-item .csay, .plabel .csay, .clabel .csay,
 .dn-label .csay, .bd-label .csay, .sp-label .csay, .rg-arch .csay, .ar-label .csay, .rh-note .csay,
-.sn-item .csay, .mz-tok .csay, .bo-brick .csay, .fd-it .csay, .sl-crate .csay { display: none; }
+.sn-item .csay, .mz-tok .csay, .bo-brick .csay, .fd-it .csay, .sl-crate .csay, .fp-slot .csay { display: none; }
 body[data-theme="pro"] .csay, body[data-theme="neon"] .csay { background: rgba(255,255,255,.16); box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
 .sayall { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px 0 8px; border-radius: 20px; background: var(--panel2); font-size: 14px; font-weight: 600; }
 .sayall .emo { width: 22px; height: 22px; }

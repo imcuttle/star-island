@@ -247,7 +247,7 @@
   /* ================= HUD ================= */
   function hudHTML() {
     return '<div class="hud"><div class="hud-me">' + '<div class="hud-av"></div><div><div class="hud-name"></div><div class="hud-lv"><span></span><div class="xpbar"><i></i></div></div></div></div>' +
-      '<div class="hud-right"><div class="hud-pill hud-coins">' + E('🪙') + '<b></b></div><div class="hud-pill hud-gems">' + E('💎') + '<b></b></div><div class="hud-pill hud-stars">' + E('⭐') + '<b></b></div><button class="hud-btn hud-set" data-key="," data-tip="家长中心">' + E('⚙️') + '</button></div></div>';
+      '<div class="hud-right"><div class="hud-pill hud-coins">' + E('🪙') + '<b></b></div><div class="hud-pill hud-gems">' + E('💎') + '<b></b></div><div class="hud-pill hud-stars">' + E('⭐') + '<b></b></div><button class="hud-btn hud-set" data-key="," data-tip="设置 · 声音 · 家长中心">' + E('⚙️') + '</button></div></div>';
   }
   function updateHUD() {
     const p = P(); if (!p) return;
@@ -773,14 +773,21 @@
   /* ================= 家长中心 ================= */
   // 家长验证题：两位数 × 两位数，小朋友不容易算出来
   function parentQuiz() { const a = R.int(12, 29), b = R.int(12, 19); return { html: '请家长回答：<b class="latin">' + a + ' × ' + b + ' = ?</b>', ok: v => String(v).trim() !== '' && +v === a * b }; }
+  // 齿轮设置：声音（开关 + 音量）小朋友自己就能调；下面是需要家长验证的家长中心
+  const SOUNDS = [['music', '🎵', '🔇', '音乐'], ['voice', '🗣️', '🤐', '朗读'], ['sfx', '🔔', '🔕', '音效']];
   function parentGate() {
-    const pq = parentQuiz();
-    const m = UI.modal('<div class="mtitle">' + E('👨‍👩‍👧') + ' 家长中心</div><p class="c">' + pq.html + '</p><input class="inp c" inputmode="numeric" maxlength="3"><button class="btn big go">进入</button><div class="quickset"><button class="btn ghost sm t-mus"></button><button class="btn ghost sm t-sfx"></button><button class="btn ghost sm t-voi"></button></div>');
-    const p = P(); const lab = () => { m.el.querySelector('.t-mus').innerHTML = (p.settings.music ? '🎵 音乐开' : '🔇 音乐关'); m.el.querySelector('.t-sfx').innerHTML = (p.settings.sfx ? '🔔 音效开' : '🔕 音效关'); m.el.querySelector('.t-voi').innerHTML = (p.settings.voice ? '🗣️ 朗读开' : '🤐 朗读关'); };
-    lab();
-    m.el.querySelector('.t-mus').onclick = () => { p.settings.music = !p.settings.music; save(); p.settings.music ? Audio2.playMusic(Audio2.musicName || 'happy') : Audio2.stopMusic(); lab(); };
-    m.el.querySelector('.t-sfx').onclick = () => { p.settings.sfx = !p.settings.sfx; save(); lab(); };
-    m.el.querySelector('.t-voi').onclick = () => { p.settings.voice = !p.settings.voice; save(); lab(); };
+    const pq = parentQuiz(), p = P();
+    const m = UI.modal('<div class="mtitle">' + E('⚙️') + ' 设置</div><div class="vols">' + SOUNDS.map(v => '<div class="vrow" data-v="' + v[0] + '"><button class="vtog" aria-label="' + v[3] + '开关"></button><span>' + v[3] + '</span><input type="range" min="0" max="100" step="5" value="' + Math.round(Audio2.vol(v[0]) * 100) + '"><b>' + Math.round(Audio2.vol(v[0]) * 100) + '</b></div>').join('') + '</div>' +
+      '<div class="pg-sep">' + E('👨‍👩‍👧') + ' 家长中心</div><p class="c">' + pq.html + '</p><input class="inp c" inputmode="numeric" maxlength="3"><button class="btn big go">进入</button>');
+    const turn = (k, on) => { p.settings[k] = on; save(); if (k === 'music') on ? Audio2.playMusic(Audio2.musicName || 'happy') : Audio2.stopMusic(); };
+    $$('.vrow', m.el).forEach(row => {
+      const k = row.dataset.v, s = SOUNDS.find(v => v[0] === k), tog = row.querySelector('.vtog'), r = row.querySelector('input');
+      const lab = () => { tog.innerHTML = E(p.settings[k] ? s[1] : s[2]); row.classList.toggle('off', !p.settings[k]); };
+      lab();
+      tog.onclick = () => { turn(k, !p.settings[k]); lab(); };
+      r.oninput = () => { Audio2.setVol(k, +r.value); r.nextElementSibling.textContent = r.value; if (!p.settings[k] && +r.value > 0) { turn(k, true); lab(); } };
+      r.onchange = () => { if (k === 'voice') Voice.say(R.pick(Engines.PRAISE)); else if (k === 'sfx') Audio2.sfx('right', .5); };
+    });
     m.el.querySelector('.go').onclick = () => { if (pq.ok(m.el.querySelector('.inp').value)) { m.close(); parentPanel(); } else shakeInp(m.el.querySelector('.inp')); };
   }
   function shakeInp(i) { i.classList.remove('shake'); void i.offsetWidth; i.classList.add('shake'); i.value = ''; Audio2.sfx('wrong', .3); }
@@ -791,7 +798,6 @@
       '<label>画面风格</label><div class="gsel th">' + [['auto', '跟随年级']].concat(THEMES.map(t => [t[0], t[1]])).map(t => '<button class="chip' + (p.settings.theme === t[0] ? ' on' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>点读（悬停 / 长按题目选项时朗读，适合还不识字的小朋友）</label><div class="gsel ra">' + [['auto', '跟随年级'], ['on', '开'], ['off', '关']].map(t => '<button class="chip' + ((p.settings.readAloud == null ? 'auto' : p.settings.readAloud ? 'on' : 'off') === t[0] ? ' on' : '') + '" data-r="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>大游戏操作方式</label><div class="gsel ctl">' + [['auto', '自动识别'], ['touch', '触屏按钮'], ['kbm', '键盘鼠标']].map(t => '<button class="chip' + ((p.settings.ctrl || 'auto') === t[0] ? ' on' : '') + '" data-k="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
-      '<label>音量</label><div class="vols">' + [['music', '🎵', '音乐'], ['voice', '🗣️', '朗读'], ['sfx', '🔔', '音效']].map(v => '<div class="vrow">' + E(v[1]) + '<span>' + v[2] + '</span><input type="range" min="0" max="100" step="5" data-v="' + v[0] + '" value="' + Math.round(Audio2.vol(v[0]) * 100) + '"><b>' + Math.round(Audio2.vol(v[0]) * 100) + '</b></div>').join('') + '</div>' +
       '<label>3D 画质（手机发热、卡顿时选「省电流畅」）</label><div class="gsel gfx">' + [['auto', '自动'], ['low', '省电流畅'], ['mid', '均衡'], ['high', '高清']].map(t => '<button class="chip' + ((p.settings.gfx || 'auto') === t[0] ? ' on' : '') + '" data-q="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>每日游戏时长（时间到了会锁住，家长验证后才能继续玩）</label><div class="gsel lim">' + [[15, '15分钟'], [30, '30分钟'], [45, '45分钟'], [60, '60分钟'], [0, '不限制']].map(t => '<button class="chip' + (p.settings.limit === t[0] ? ' on' : '') + '" data-l="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>放开全部限制（等级解锁、Boss 星星要求、糊涂龙宝石要求、休息提醒都不再限制）</label><div class="gsel fre">' + [[1, '🔓 全部放开'], [0, '正常限制']].map(t => '<button class="chip' + (!!p.settings.free === !!t[0] ? ' on' : '') + '" data-f="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
@@ -800,10 +806,6 @@
     m.el.querySelector('.gsel').onclick = e => { const b = e.target.closest('[data-g]'); if (!b) return; p.grade = +b.dataset.g; save(); m.close(); applyTheme(); hub(); UI.toast('已切换到' + GRADES[p.grade]); };
     m.el.querySelector('.th').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; p.settings.theme = b.dataset.t; save(); m.close(); applyTheme(); hub(); };
     m.el.querySelector('.ctl').onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; p.settings.ctrl = b.dataset.k; save(); $$('.ctl .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); };
-    $$('.vols input', m.el).forEach(r => {
-      r.oninput = () => { Audio2.setVol(r.dataset.v, +r.value); r.nextElementSibling.textContent = r.value; };
-      r.onchange = () => { if (r.dataset.v === 'voice') Voice.say(R.pick(Engines.PRAISE)); else if (r.dataset.v === 'sfx') Audio2.sfx('right', .5); };
-    });
     m.el.querySelector('.gfx').onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; p.settings.gfx = b.dataset.q; save(); Core.Perf.refresh(); $$('.gfx .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); UI.toast('画质已切换，下一个 3D 场景完全生效'); };
     m.el.querySelector('.ra').onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return; p.settings.readAloud = b.dataset.r === 'auto' ? null : b.dataset.r === 'on'; save(); $$('.ra .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); };
     m.el.querySelector('.fre').onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; p.settings.free = b.dataset.f === '1'; save(); $$('.fre .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); UI.toast(p.settings.free ? '已放开全部限制' : '已恢复正常限制'); if (curScreen === 'hub') hub(); else if (curScreen === 'play') playground(); };

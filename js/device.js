@@ -1,4 +1,4 @@
-/* 设备适配：屏蔽浏览器手势（下拉刷新、滑动返回、双指缩放、长按菜单）、返回键、横竖屏、PWA、3D 画质档位
+/* 设备适配：屏蔽浏览器手势（下拉刷新、滑动返回、双指缩放、双击 / 长按放大、长按菜单）、返回键、横竖屏、PWA、3D 画质档位
    必须在 core.js 之前加载 */
 (function () {
   'use strict';
@@ -36,6 +36,10 @@
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(ev => D.addEventListener(ev, e => e.preventDefault())); // iOS 双指缩放
   D.addEventListener('dblclick', e => { if (!editable(e.target)) e.preventDefault(); }, { passive: false }); // 双击放大
   D.addEventListener('contextmenu', e => { if (!editable(e.target)) e.preventDefault(); }); // 长按 / 右键菜单
+  // 长按选字（iPhone 会弹出放大镜）：不让开始选，万一选上了也马上清掉
+  const elOf = n => n && (n.nodeType === 1 ? n : n.parentElement);
+  D.addEventListener('selectstart', e => { if (!editable(elOf(e.target))) e.preventDefault(); });
+  D.addEventListener('selectionchange', () => { const s = getSelection(); if (s && s.rangeCount && !s.isCollapsed && !editable(D.activeElement) && !editable(elOf(s.anchorNode))) s.removeAllRanges(); });
   D.addEventListener('dragstart', e => { if (e.target && e.target.tagName === 'IMG') e.preventDefault(); });
   addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false }); // 触控板捏合缩放
 

@@ -2,12 +2,20 @@
 
 /* ---- 不让浏览器接管手势：下拉刷新、整页回弹、左右滑动翻页、长按菜单、双击放大 ---- */
 html, body { overscroll-behavior: none; -webkit-touch-callout: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
-input, textarea { -webkit-touch-callout: default; }
+/* 长按：iPhone 的放大镜（选字放大）、图片放大预览、选字菜单都不要。每个元素都写明，不靠继承（canvas、svg 上也会出放大镜） */
+*, *::before, *::after { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+img, svg, canvas { -webkit-user-drag: none; }
+input, textarea, [contenteditable="true"] { -webkit-touch-callout: default; -webkit-user-select: text; user-select: text; }
 
-/* ---- 安全区：画面整体让开刘海 / 灵动岛 / 底部横条，让出来的边用当前画面的底色补齐 ---- */
-:root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
+/* ---- 安全区：按钮、文字等界面让开刘海 / 灵动岛 / 底部横条；
+        每个画面的背景层（渐变底、3D 场景、暗角，以及跟 3D 对齐的标签层）向外铺满整块屏幕，让出来的边和画面连成一片 ---- */
+:root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
+  --bleed: calc(-1 * var(--sat)) calc(-1 * var(--sar)) calc(-1 * var(--sab)) calc(-1 * var(--sal)); }
 #app { top: var(--sat); right: var(--sar); bottom: var(--sab); left: var(--sal); }
+.screen, .screen.p3 { overflow: visible; }
+.title-bg, .world, .zone-bg, .s-game::before, .arena, .room, .shop-bg, .g-stars, .hm-flat, .screen.p3::before, .screen.p3::after,
+.p3 .hm-3d, .p3 .hm-labels, .p3 .hm-fx, .x3 .x3-gl, .x3-labs, .x3-fx, .b5 .b5-bg, .b5 .b5-3d, .b5-lab, .b5-fx { inset: var(--bleed); width: auto; height: auto; }
+.b5 .b5-bg { width: calc(100% + var(--sal) + var(--sar)); height: calc(100% + var(--sat) + var(--sab)); } /* canvas 不会被左右定位撑开，要写明宽高 */
 html[data-screen="home"] body, html[data-screen="explore"] body, html[data-screen="battle5"] body { background: #0a0a0a; }
 html[data-screen="hub"] body, html[data-screen="title"] body { background: linear-gradient(180deg, #5cc4ff, #bfe7ff 60%, #3fa7e8); }
 .modal-bg { padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal)); }
@@ -37,10 +45,15 @@ body.locked #fx { z-index: 9000; }
 .modal.tlock-m .tl-set { margin: 14px auto 0; display: flex; }
 .pt-btns { justify-content: flex-start; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
 
-/* ---- 家长中心：音量滑块 ---- */
+/* ---- 齿轮设置：声音开关 + 音量滑块（不用家长验证），下面是家长中心入口 ---- */
 .vols { display: grid; gap: 6px; margin: 6px 0 2px; }
 .vrow { display: flex; align-items: center; gap: 10px; }
 .vrow .emo { width: 24px; height: 24px; }
+.vtog { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--panel2); box-shadow: inset 0 0 0 2px var(--line); }
+.vtog .emo { width: 26px; height: 26px; }
+.vrow.off span, .vrow.off b, .vrow.off input { opacity: .4; }
+.pg-sep { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 16px 0 2px; padding-top: 14px; border-top: 1px dashed var(--line); font-weight: 700; color: var(--ink2); }
+.pg-sep .emo { width: 22px; height: 22px; }
 .vrow span { width: 2.6em; flex: none; }
 .vrow input[type=range] { flex: 1; min-width: 0; height: 30px; accent-color: var(--accent); }
 .vrow b { width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -89,7 +102,8 @@ body.locked #fx { z-index: 9000; }
   .field, .sea, .pond, .rn-field, .fp-field, .ar-field, .sl-field, .bo-field, .rh-field, .fd-field, .tf-field { min-height: 150px; }
   .holes { gap: 6px 16px; } .hole { height: min(150px, 42vh); } .mspr .spr, .mspr .emo { width: 66px; height: 66px; } .hole.up .mole { bottom: 26px; } .hole .dirt { height: 32px; }
   .mgrid { grid-template-columns: repeat(6, 1fr); gap: 8px; } .mgrid.n8 { grid-template-columns: repeat(4, 1fr); } .mgrid.n10 { grid-template-columns: repeat(5, 1fr); } .mgrid.n16 { grid-template-columns: repeat(8, 1fr); }
-  .ccol { gap: 6px; } .cnode { min-height: 40px; padding: 4px 8px; }
+  .ccol { gap: 6px; justify-content: safe center; } .cnode { min-height: 40px; padding: 4px 8px; }
+  .cnode .shape { zoom: .6; } .cnode .cemo { width: 34px; height: 34px; } .cnode .aclock .clock-svg { width: 56px; height: 56px; } /* 一列 5 个也放得下，不钻到顶栏下面 */
   .chests { flex-wrap: nowrap; gap: 6px; } .chest { zoom: .7; }
   .clockwrap { flex-wrap: nowrap; gap: 16px; } .bigclock .clock-svg { width: min(300px, 70vh); height: min(300px, 70vh); }
   .clockctl { padding: 10px 12px; gap: 8px; } .cc-time { font-size: 30px; }
@@ -105,6 +119,7 @@ body.locked #fx { z-index: 9000; }
   .tt-side .qpanel, .bd-side .qpanel, .du-box .qpanel { padding: 6px 10px; } .tt-side .qvis .qemo, .bd-side .qvis .qemo, .du-box .qvis .qemo { width: 44px; height: 44px; }
   .tt-side .qbig, .bd-side .qbig { font-size: 26px; }
   .tt-side .choices, .bd-side .choices, .du-box .choices { gap: 8px; } .tt-side .choices.compact .choice, .bd-side .choices.compact .choice, .du-box .choices.compact .choice { min-height: 54px; padding: 4px 8px; }
+  :is(.tt-side, .bd-side, .du-box) .choices.compact .choice:has(> .csay) { padding: 12px 12px 4px; }
   .bl-scale { width: calc(100% - 140px); } .bl-load { width: 130px; }
   .ck-top { padding-bottom: 8px; } .ck-cust .emo { width: 54px; height: 54px; } .ck-bubble { padding: 6px 12px; font-size: 16px; } .ck-bubble::before { top: 16px; }
   .ck-o b { font-size: 26px; } .ck-o .emo { width: 34px; height: 34px; } .ck-txt { font-size: 18px; } .ck-pat { left: 66px; }
