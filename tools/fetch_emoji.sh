@@ -3,10 +3,10 @@
 # 依赖: node, python3 + Pillow；Fluent 索引缓存在 /tmp/gh_tree.json 与 /tmp/fmeta（缺失时只补 Twemoji）
 cd "$(dirname "$0")/.."
 node -e "
-const fs=require('fs');const src=fs.readdirSync('js').filter(f=>f.endsWith('.js')&&!/manifest/.test(f)).map(f=>fs.readFileSync('js/'+f,'utf8')).join('\n');
-const seg=new Intl.Segmenter('en',{granularity:'grapheme'});const set=new Set();
-for(const {segment:s} of seg.segment(src)){ if(/\p{Extended_Pictographic}|\u20e3/u.test(s)) set.add(s); }
-fs.writeFileSync('/tmp/emojis.json',JSON.stringify([...set]));"
+const fs=require('fs');const src=fs.readdirSync('js').filter(f=>f.endsWith('.js')&&!/manifest/.test(f)).map(f=>fs.readFileSync('js/'+f,'utf8')).join('\\n');
+// 国旗（两个区域指示符）、键帽、带肤色 / 零宽连接的组合 emoji 都算；Intl.Segmenter 在大文本上极慢，这里用正则
+const RE=/(?:\\p{Regional_Indicator}{2}|[#*0-9]\\uFE0F?\\u20E3|\\p{Extended_Pictographic}(?:\\uFE0F|\\p{Emoji_Modifier}|\\u200D\\p{Extended_Pictographic}\\uFE0F?)*)/gu;
+fs.writeFileSync('/tmp/emojis.json',JSON.stringify([...new Set(src.match(RE))]));"
 python3 - <<'P'
 import json,os,urllib.parse,urllib.request,io
 from PIL import Image
