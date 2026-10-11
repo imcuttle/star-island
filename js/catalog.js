@@ -1,0 +1,108 @@
+/* 关卡目录：区域 × 玩法 × 题库  [生成器, 玩法引擎, 名称, 图标, 最低年级, 最高年级] */
+(function () {
+  const ZONES = [
+    { id: 'cn', name: '语文森林', sub: '识字·拼音·古诗·成语', icon: '📜', color: '#3fb27f', music: 'quaint', boss: { name: '墨团怪', e: '🐙', sprite: 'slime_normal_rest', hp: 6 } },
+    { id: 'math', name: '数学城堡', sub: '计算·图形·时间·应用', icon: '🔢', color: '#5b7cfa', music: 'summer', boss: { name: '乱码机器人', e: '🤖', sprite: 'block_idle', hp: 7 } },
+    { id: 'en', name: '英语港湾', sub: 'ABC·单词·句子', icon: '🔤', color: '#22a6c9', music: 'happy', boss: { name: '海怪章章', e: '🦑', sprite: 'fish_purple_rest', hp: 6 } },
+    { id: 'sci', name: '科学星台', sub: '动物·植物·宇宙·常识', icon: '🔭', color: '#8a5cf6', music: 'magic', boss: { name: '迷糊外星人', e: '👾', sprite: 'slime_spike_rest', hp: 7 } },
+    { id: 'life', name: '生活小镇', sub: '安全·礼仪·健康·环保', icon: '🏡', color: '#f29a2e', music: 'frog', boss: { name: '邋遢怪', e: '🦠', sprite: 'slime_fire_rest', hp: 6 } },
+    { id: 'art', name: '艺术剧院', sub: '色彩·音乐·名画·戏曲', icon: '🎭', color: '#e8508a', music: 'magic', boss: { name: '乱涂鸦怪', e: '👻', sprite: 'bee_a', hp: 6 } },
+    { id: 'geo', name: '地理航线', sub: '国旗·大洲·中国·地形', icon: '🧭', color: '#c0843c', music: 'summer', boss: { name: '迷路龙卷风', e: '🌪️', sprite: 'fly_a', hp: 7 } },
+    { id: 'cul', name: '国学文化馆', sub: '生肖·节日·故事·三字经', icon: '🏮', color: '#c8382e', music: 'quaint', boss: { name: '年兽', e: '🦁', sprite: 'frog_idle', hp: 7 } },
+    { id: 'logic', name: '逻辑实验室', sub: '规律·编程·数独·推理', icon: '🧩', color: '#14b8a6', music: 'smore', boss: { name: '混乱魔方', e: '🎲', sprite: 'saw_a', hp: 7 } },
+    { id: 'job', name: '职业体验城', sub: '职业·工具·场所·财商', icon: '🏗️', color: '#84a516', music: 'frog', boss: { name: '懒懒怪', e: '🦥', sprite: 'mouse_walk_a', hp: 6 } },
+  ];
+  const L = {
+    cn: [
+      ['word_pic', 'kart', '汉字卡丁车', '🏎️', 0, 4], ['hz_pic', 'platform', '识字大冒险', '🍄', 0, 2], ['fanyi', 'roll', '反义词滚球', '🔮', 1, 4], ['liangci', 'bird', '量词弹弓战', '🐦', 0, 3], ['poem_next', 'splat', '古诗涂涂战', '🔫', 1, 4], ['cy_guess', 'platform', '成语大冒险', '🏰', 2, 4], ['hz_build', 'hzbuild', '汉字积木', '🧱', 1, 4], ['dots_cn', 'dots', '中文数字连点画', '✏️', 0, 2], ['cook_cn', 'cook', '读菜单小厨师', '👩‍🍳', 1, 4], ['jig_zh', 'jigsaw', '动物拼图', '🧩', 0, 2], ['hz_pic', 'snake', '汉字贪吃蛇', '🐍', 0, 2], ['py_hz', 'maze', '拼音迷宫', '🌀', 1, 3], ['fanyi', 'runner', '反义词跑酷', '🏃', 1, 4], ['hz_read', 'findit', '识字找一找', '🔎', 0, 2], ['tr_hz', 'trace', '汉字描红', '🖋️', 0, 4], ['liangci', 'archery', '量词神箭手', '🏹', 0, 3], ['sp_cy', 'wsearch', '成语寻宝格', '🔤', 2, 4], ['sp_poem', 'wsearch', '诗句寻宝格', '📜', 2, 4], ['poem_next', 'duel', '古诗抢答擂台', '🎤', 1, 4], ['cy_guess', 'board', '成语飞行棋', '🎲', 2, 4], ['p_py_hz', 'pixel', '拼音涂色', '🎨', 1, 3], ['bushou_q', 'bomb', '偏旁拆弹', '💣', 2, 4], ['jinyi', 'tower', '近义词叠高塔', '🏗️', 2, 4], ['word_pic', 'rhythm', '词语节奏', '🎵', 1, 3], ['pindu', 'flappy', '拼读飞跃门', '🐦', 0, 2], ['fanyi', 'tictac', '反义词井字棋', '⭕', 1, 4], ['hz_py', 'breakout', '注音打砖块', '🧱', 1, 3], ['sm_listen', 'sling', '声母弹弓', '🎯', 0, 1], ['hz_pic', 'catch', '汉字接接乐', '🧺', 0, 2], ['fanyi', 'catch', '反义词大接龙', '☯️', 1, 4], ['cy_guess', 'catch', '成语接接乐', '🎏', 2, 4], ['hz_pic', 'quiz', '看图识字', '🖼️', 0, 2], ['hz_read', 'bubble', '识字泡泡', '🫧', 0, 2], ['p_hz_pic', 'memory', '字画翻翻乐', '🃏', 0, 2],
+      ['sm_listen', 'whack', '声母打地鼠', '🔨', 0, 1], ['ym_listen', 'fish', '韵母钓鱼', '🎣', 0, 1], ['pindu', 'frog', '拼读青蛙跳', '🐸', 0, 2],
+      ['py_pic', 'chest', '拼音寻宝', '🧰', 0, 2], ['py_hz', 'ufo', '拼音星际战', '🛸', 1, 3], ['hz_py', 'race', '注音赛车', '🏎️', 1, 3],
+      ['p_py_hz', 'connect', '拼音连连看', '🔗', 1, 3], ['fanyi', 'balloon', '反义词气球', '🎈', 0, 3], ['p_fanyi', 'memory', '反义词翻牌', '🎴', 1, 4],
+      ['liangci', 'feed', '量词喂喂乐', '🍽️', 0, 3], ['word_pic', 'quiz', '看图选词', '🌄', 1, 3], ['bushou_q', 'whack', '偏旁大作战', '🧩', 1, 4],
+      ['s_bushou', 'sort', '偏旁分家', '🏠', 1, 4], ['o_sentence', 'order', '连词成句', '🧵', 1, 4], ['jinyi', 'fish', '近义词钓鱼', '🐟', 2, 4],
+      ['p_jinyi', 'connect', '近义词连线', '🪢', 2, 4], ['poem_next', 'quiz', '古诗接龙', '🏮', 0, 4], ['poem_fill', 'chest', '古诗填字', '🖌️', 1, 4],
+      ['o_poem', 'order', '诗句排排队', '📃', 1, 4], ['p_poem', 'connect', '诗句连连看', '🎐', 1, 4], ['poem_author', 'race', '诗人赛跑', '🧑‍🎓', 2, 4],
+      ['poem_title', 'ufo', '诗名大挑战', '📜', 2, 4], ['sp_poem', 'spell', '诗句拼拼乐', '🀄', 2, 4], ['cy_guess', 'quiz', '成语猜猜猜', '🤔', 2, 4],
+      ['cy_fill', 'balloon', '成语填空', '🧧', 2, 4], ['cy_mean', 'frog', '成语释义', '📖', 3, 4], ['p_cy', 'memory', '成语翻翻乐', '🀄', 3, 4],
+      ['sp_cy', 'spell', '成语拼图', '🧱', 3, 4] ],
+    math: [
+      ['add20', 'kart', '加法卡丁车', '🏎️', 1, 2], ['mul', 'kart', '口诀卡丁车', '🏁', 2, 4], ['add10', 'platform', '数学大冒险', '🍄', 0, 1], ['wordprob', 'platform', '应用题大冒险', '🏰', 2, 4], ['compare', 'roll', '比大小滚球', '🔮', 0, 3], ['sub100', 'bird', '减法弹弓战', '🐦', 2, 4], ['count', 'bird', '数数弹弓战', '🐤', 0, 1], ['seq', 'splat', '规律涂涂战', '🔫', 1, 4], ['mix', 'roll', '混合运算滚球', '🔮', 3, 4], ['make10', 'make10', '合十消除', '🔟', 0, 4], ['cash_pay', 'cashier', '小小收银员', '💰', 0, 4], ['cash_change', 'cashier', '找零钱', '💴', 2, 4], ['eq_build', 'equation', '算式建造', '🧮', 0, 4], ['dots_num', 'dots', '数字连点画', '✏️', 0, 1], ['dots_skip', 'dots', '跳着数连点画', '🦘', 1, 4], ['cook_math', 'cook', '数数小厨师', '🍳', 0, 2], ['add10', 'snake', '加法贪吃蛇', '🐍', 0, 1], ['add20', 'runner', '20以内跑酷', '🏃', 1, 2], ['mul', 'breakout', '口诀打砖块', '🧱', 2, 4], ['bal', 'balance', '天平凑数', '⚖️', 0, 4], ['p_add', 'pixel', '加法涂色', '🎨', 0, 2], ['p_mul', 'pixel', '乘法涂色', '🖍️', 2, 4], ['compare', 'flappy', '比大小飞跃', '🐦', 0, 3], ['sub20', 'archery', '减法神箭手', '🏹', 1, 2], ['div', 'bomb', '除法拆弹', '💣', 2, 4], ['missing', 'tictac', '填空井字棋', '⭕', 1, 4], ['wordprob', 'duel', '应用题擂台赛', '🎤', 2, 4], ['seq', 'tower', '规律叠高塔', '🏗️', 1, 4], ['clock_read', 'board', '钟表飞行棋', '🎲', 1, 4], ['sub100', 'maze', '减法迷宫', '🌀', 2, 4], ['mix', 'rhythm', '混合运算节奏', '🎵', 3, 4], ['add100', 'sling', '加法弹弓', '🎯', 2, 4], ['tr_num', 'trace', '数字描红', '🖋️', 0, 1], ['shape', 'sling', '图形弹弓', '🔺', 0, 2], ['add10', 'catch', '加法接水果', '🍉', 0, 1], ['add20', 'catch', '20以内接接乐', '🧺', 1, 2], ['mul', 'catch', '口诀接星星', '🌠', 2, 4], ['compare', 'catch', '比大小接接乐', '⚖️', 0, 3], ['count', 'quiz', '数一数', '🍎', 0, 1], ['count', 'bubble', '数数泡泡', '🫧', 0, 1], ['groups', 'quiz', '比多少', '⚖️', 0, 1],
+      ['compare', 'whack', '比大小打地鼠', '🔨', 0, 4], ['compose10', 'feed', '凑十喂怪兽', '🍽️', 0, 2], ['add10', 'balloon', '10以内加法', '🎈', 0, 1],
+      ['sub10', 'fish', '10以内减法', '🎣', 0, 1], ['p_add', 'memory', '加法翻翻乐', '🃏', 0, 2], ['shape', 'chest', '图形寻宝', '🔷', 0, 2],
+      ['p_shape', 'connect', '图形连连看', '🔺', 0, 2], ['s_shape', 'sort', '图形分家', '🟦', 1, 3], ['add20', 'race', '20以内加法赛车', '🏎️', 1, 2],
+      ['sub20', 'frog', '20以内减法跳跳', '🐸', 1, 2], ['o_num', 'order', '数字排队', '🔢', 0, 4], ['oddeven', 'ufo', '单双数星战', '🛸', 1, 3],
+      ['s_oddeven', 'sort', '单双数分家', '🏘️', 1, 3], ['clock_read', 'quiz', '认识钟表', '🕰️', 1, 4], ['clockset', 'clockset', '拨钟高手', '⏰', 1, 4],
+      ['p_clock', 'connect', '钟表连连看', '⌚', 1, 3], ['money', 'chest', '小小售货员', '💰', 1, 4], ['add100', 'balloon', '100以内加法', '🎯', 2, 4],
+      ['sub100', 'whack', '100以内减法', '🔨', 2, 4], ['missing', 'feed', '算式填空', '❓', 1, 4], ['seq', 'frog', '找规律', '🔁', 1, 4],
+      ['mul', 'race', '乘法口诀赛车', '✖️', 2, 4], ['p_mul', 'memory', '口诀翻翻乐', '🎴', 2, 4], ['div', 'fish', '除法钓鱼', '➗', 2, 4],
+      ['unit', 'quiz', '单位小侦探', '📏', 2, 4], ['sides', 'bubble', '数边泡泡', '🔶', 1, 3], ['o_num_desc', 'order', '倒序排队', '🔽', 1, 4],
+      ['wordprob', 'quiz', '应用题擂台', '📝', 1, 4], ['double', 'ufo', '倍数星战', '🚀', 2, 4], ['timeconv', 'chest', '换算宝箱', '⏳', 2, 4],
+      ['fraction', 'quiz', '分数披萨', '🍕', 3, 4], ['bignum', 'race', '大数赛车', '🔟', 3, 4], ['mix', 'ufo', '四则混合星战', '🧮', 3, 4] ],
+    en: [
+      ['en_word', 'kart', 'English Kart', '🏎️', 0, 4], ['en_pic', 'platform', 'Super Adventure', '🍄', 0, 3], ['cn_en', 'roll', 'Star Ball', '🔮', 1, 4], ['en_listen', 'bird', 'Angry Words', '🐦', 1, 4], ['letter_case', 'splat', 'ABC Splat', '🔫', 0, 2], ['en_phrase', 'splat', 'Phrase Splat', '💦', 2, 4], ['hang_en', 'hangman', '气球猜单词', '🎈', 1, 4], ['cook_en', 'cook', 'English Café', '☕', 1, 4], ['dots_abc', 'dots', 'ABC 连点画', '🔤', 0, 2], ['jig_en', 'jigsaw', 'Animal Puzzle', '🧩', 0, 3], ['letter_case', 'snake', '字母贪吃蛇', '🐍', 0, 2], ['en_pic', 'findit', 'Find it! 找单词', '🔎', 0, 3], ['tr_abc', 'trace', '字母描红', '🖋️', 0, 2], ['en_listen', 'runner', '听音跑酷', '🏃', 1, 4], ['sp_en', 'wsearch', 'Word Search', '🔤', 1, 4], ['p_en_pic', 'pixel', '单词涂色', '🎨', 1, 4], ['cn_en', 'duel', '英语抢答擂台', '🎤', 2, 4], ['en_word', 'archery', '单词神箭手', '🏹', 0, 3], ['letter_next', 'flappy', '字母飞跃门', '🐦', 0, 2], ['en_cn', 'tictac', '英汉井字棋', '⭕', 2, 4], ['en_phrase', 'board', '情景飞行棋', '🎲', 2, 4], ['en_miss', 'bomb', '缺字母拆弹', '💣', 2, 4], ['en_fruit', 'sling', '水果弹弓', '🎯', 0, 2], ['enl_animal', 'rhythm', '动物节奏', '🎵', 0, 3], ['letter_first', 'maze', '首字母迷宫', '🌀', 0, 2], ['en_color', 'breakout', '颜色打砖块', '🧱', 0, 2], ['en_traffic', 'tower', '交通叠高塔', '🏗️', 1, 3], ['en_animal', 'catch', 'Catch Animals', '🐾', 0, 3], ['letter_case', 'catch', '字母接接乐', '🔡', 0, 2], ['cn_en', 'catch', '中英接接乐', '🎯', 2, 4], ['letter_case', 'balloon', '大小写气球', '🎈', 0, 2], ['p_case', 'memory', '字母翻翻乐', '🔠', 0, 2], ['letter_listen', 'whack', '听音打字母', '🔨', 0, 2],
+      ['letter_first', 'quiz', 'A for Apple', '🍎', 0, 2], ['o_abc', 'order', '字母排队', '🔤', 0, 2], ['letter_next', 'frog', '字母跳跳', '🐸', 0, 2],
+      ['en_fruit', 'fish', 'Fruits 水果', '🍓', 0, 3], ['enl_animal', 'bubble', 'Animals 动物', '🦁', 0, 3], ['en_color', 'balloon', 'Colors 颜色', '🎨', 0, 2],
+      ['en_num', 'chest', 'Numbers 数字', '🔢', 0, 2], ['en_howmany', 'quiz', 'How many?', '🧮', 0, 2], ['enl_body', 'whack', 'My Body 身体', '🖐️', 0, 3],
+      ['en_family', 'quiz', 'Family 家人', '👨‍👩‍👧', 0, 3], ['en_food', 'feed', 'Food 美食', '🍔', 1, 3], ['en_traffic', 'race', 'Transport 交通', '🚗', 1, 3],
+      ['en_thing', 'chest', 'Things 物品', '🎒', 1, 3], ['en_nature', 'ufo', 'Nature 自然', '🌈', 1, 4], ['en_veg', 'fish', 'Vegetables 蔬菜', '🥕', 1, 3],
+      ['en_clothes', 'balloon', 'Clothes 衣服', '👗', 2, 4], ['en_feel', 'quiz', 'Feelings 心情', '😊', 2, 4], ['en_action', 'frog', 'Actions 动作', '🏃', 2, 4],
+      ['en_listen', 'bubble', '听力大挑战', '🎧', 1, 4], ['p_en_pic', 'memory', '单词翻翻乐', '🃏', 1, 4], ['p_en_cn', 'connect', '英汉连连看', '🔗', 1, 4],
+      ['s_en_cat', 'sort', '单词分类', '🗂️', 1, 4], ['en_cn', 'race', '英译中赛车', '🏁', 2, 4], ['cn_en', 'ufo', '中译英星战', '🛸', 2, 4],
+      ['en_miss', 'chest', '缺字母寻宝', '🔍', 2, 4], ['sp_en', 'spell', '单词拼拼乐', '🧩', 1, 4], ['en_phrase', 'quiz', '情景对话', '💬', 1, 4],
+      ['en_phrase_cn', 'fish', '英语句子钓鱼', '🗨️', 2, 4], ['o_en_sent', 'order', '单词连成句', '🧵', 2, 4] ],
+    sci: [
+      ['know_q', 'kart', '百科卡丁车', '🏎️', 1, 4], ['animal_pic', 'platform', '动物大冒险', '🍄', 0, 2], ['fact_tf', 'roll', '科学滚球', '🔮', 1, 4], ['eat_q', 'bird', '喂食弹弓战', '🐦', 0, 2], ['planet_q', 'splat', '太空涂涂战', '🪐', 2, 4], ['pipes', 'pipes', '浇花水管工', '🚰', 0, 4], ['jig_zh', 'jigsaw', '动物拼图', '🦒', 0, 3], ['lights', 'lights', '点亮星空', '🌌', 1, 4], ['animal_pic', 'findit', '动物找一找', '🔎', 0, 2], ['fact_tf', 'runner', '真假跑酷', '🏃', 1, 4], ['know_q', 'duel', '百科擂台', '🎤', 1, 4], ['p_eat', 'pixel', '美食涂色', '🎨', 0, 2], ['eat_q', 'sling', '喂食弹弓', '🎯', 0, 2], ['planet_q', 'flappy', '太空飞跃', '🚀', 2, 4], ['sound_q', 'snake', '叫声贪吃蛇', '🐍', 0, 2], ['season_q', 'archery', '四季神箭手', '🏹', 0, 2], ['know_q', 'board', '科学飞行棋', '🎲', 2, 4], ['home_q', 'maze', '动物回家迷宫', '🌀', 0, 2], ['fact_tf', 'bomb', '科学拆弹', '💣', 2, 4], ['float_q', 'tower', '沉浮叠高塔', '🏗️', 1, 3], ['eat_q', 'catch', '动物美食接接乐', '🍯', 0, 2], ['know_q', 'catch', '百科接接乐', '🌌', 1, 4], ['animal_pic', 'bubble', '动物认认看', '🦒', 0, 1], ['sound_q', 'whack', '谁在叫', '🔊', 0, 2], ['p_sound', 'connect', '叫声连连看', '🎵', 0, 2],
+      ['eat_q', 'feed', '动物吃什么', '🥕', 0, 2], ['p_eat', 'memory', '美食配对', '🦴', 0, 2], ['home_q', 'quiz', '动物的家', '🏝️', 0, 2],
+      ['s_home', 'sort', '送动物回家', '🧭', 1, 3], ['baby_q', 'frog', '动物宝宝', '🐣', 0, 2], ['p_baby', 'connect', '找妈妈', '🤱', 0, 2],
+      ['o_cycle', 'order', '生命的旅程', '🌱', 0, 4], ['season_q', 'balloon', '四季猜猜', '🍁', 0, 2], ['s_season', 'sort', '四季分类', '🌸', 0, 3],
+      ['instr_q', 'chest', '乐器宝箱', '🎻', 0, 3], ['float_q', 'fish', '沉还是浮', '🛟', 1, 3], ['s_float', 'sort', '沉浮实验室', '🧪', 1, 3],
+      ['fact_tf', 'tf', '科学判断王', '✔️', 1, 4], ['know_q', 'quiz', '百科知识王', '🧠', 1, 4], ['planet_q', 'ufo', '太空探险', '🪐', 2, 4],
+      ['o_planet', 'order', '行星排排队', '☀️', 2, 4], ['know_q', 'race', '百科赛车', '🏎️', 2, 4], ['fact_tf', 'whack', '真假大锤', '🔨', 2, 4] ],
+    life: [
+      ['safe_tf', 'kart', '安全卡丁车', '🏎️', 0, 4], ['trash_q', 'bird', '垃圾分类弹弓战', '♻️', 0, 4], ['manner_q', 'platform', '礼仪大冒险', '🍄', 0, 3], ['healthy_q', 'roll', '健康滚球', '🔮', 0, 3], ['phone_q', 'splat', '求助涂涂战', '🔫', 1, 3], ['traffic', 'traffic', '安全过马路', '🚦', 0, 4], ['cash_pay', 'cashier', '超市付钱', '🛒', 0, 3], ['cook_cn', 'cook', '帮妈妈买菜', '🧺', 1, 3], ['safe_tf', 'runner', '安全跑酷', '🏃', 0, 4], ['trash_q', 'sling', '垃圾分类弹弓', '🎯', 0, 4], ['manner_q', 'duel', '礼貌擂台', '🎤', 1, 3], ['healthy_q', 'snake', '健康贪吃蛇', '🐍', 0, 3], ['phone_q', 'bomb', '紧急电话拆弹', '💣', 1, 3], ['kin_q', 'board', '家族飞行棋', '🎲', 1, 4], ['emo_face', 'findit', '心情找一找', '🔎', 0, 2], ['wear_q', 'flappy', '天气飞跃', '🐦', 0, 2], ['p_phone', 'pixel', '求助涂色', '🎨', 0, 3], ['safe_tf', 'tictac', '安全井字棋', '⭕', 1, 4], ['healthy_q', 'catch', '健康食物接接乐', '🥕', 0, 3], ['manner_q', 'catch', '礼貌接接乐', '🌷', 0, 3], ['safe_tf', 'tf', '安全小卫士', '🦺', 0, 4], ['phone_q', 'chest', '紧急电话', '📞', 0, 2], ['p_phone', 'connect', '求助连连看', '☎️', 0, 3],
+      ['s_trash', 'sort', '垃圾分类', '♻️', 0, 4], ['trash_q', 'fish', '垃圾分类钓鱼', '🗑️', 0, 4], ['manner_q', 'quiz', '礼貌小达人', '🙇', 0, 3],
+      ['p_manner', 'memory', '礼貌翻翻乐', '💐', 0, 3], ['s_healthy', 'sort', '健康餐盘', '🥗', 0, 3], ['healthy_q', 'feed', '营养师', '🥦', 0, 2],
+      ['o_day', 'order', '我的一天', '🌞', 0, 2], ['o_wash', 'order', '洗手五步', '🧼', 0, 1], ['emo_face', 'bubble', '心情泡泡', '😊', 0, 2],
+      ['emo_q', 'quiz', '情绪小管家', '💗', 1, 4], ['wear_q', 'frog', '天气穿什么', '☂️', 0, 2], ['kin_q', 'race', '家族称呼', '👪', 1, 4],
+      ['s_need', 'sort', '需要还是想要', '🛒', 2, 4], ['safe_tf', 'whack', '安全大锤', '🔨', 1, 4], ['money', 'quiz', '购物小管家', '🛍️', 1, 4] ],
+    art: [
+      ['instr_q', 'kart', '乐器卡丁车', '🏎️', 0, 3], ['color_name', 'splat', '颜色涂涂战', '🎨', 0, 2], ['art_know', 'roll', '艺术滚球', '🔮', 1, 4], ['simon', 'simon', '音乐记忆', '🎹', 0, 4], ['sym', 'sym', '对称画', '🦋', 0, 4], ['dots_num', 'dots', '连点画画', '🖍️', 0, 2], ['color_name', 'quiz', '认识颜色', '🎨', 0, 1], ['color_name', 'balloon', '颜色气球', '🎈', 0, 1], ['mix_q', 'quiz', '调色魔法', '🧪', 0, 3], ['mix_q', 'archery', '调色神箭手', '🏹', 1, 4],
+      ['s_warmcool', 'sort', '冷暖色分家', '🌡️', 1, 4], ['arttool_pic', 'findit', '画具找一找', '🔎', 0, 2], ['arttool_q', 'chest', '画具宝箱', '🖌️', 0, 3], ['arttool_q', 'snake', '画具贪吃蛇', '🐍', 0, 2],
+      ['instr_q', 'rhythm', '乐器节奏', '🎵', 0, 2], ['instr_fam', 'quiz', '乐器家族', '🎻', 1, 4], ['s_instr', 'sort', '乐器分类', '🎼', 1, 4], ['note_next', 'rhythm', '音阶节奏', '🎶', 0, 3],
+      ['note_next', 'flappy', '音符飞跃', '🐦', 0, 3], ['o_notes', 'order', '音阶排队', '🎹', 0, 3], ['song_next', 'quiz', '儿歌接唱', '🎤', 0, 3], ['song_next', 'duel', '儿歌擂台', '🏆', 1, 3],
+      ['p_song', 'connect', '儿歌连连看', '🔗', 0, 3], ['paint_q', 'quiz', '名画猜画家', '🖼️', 2, 4], ['p_paint', 'memory', '名画翻翻乐', '🃏', 2, 4], ['paint_q', 'tower', '名画叠高塔', '🏗️', 2, 4],
+      ['art_know', 'quiz', '艺术小百科', '💡', 1, 4], ['art_know', 'board', '艺术飞行棋', '🎲', 2, 4], ['art_know', 'bomb', '艺术拆弹', '💣', 3, 4], ['mix_q', 'tictac', '调色井字棋', '⭕', 1, 4] ],
+    geo: [
+      ['flag_q', 'kart', '国旗环球赛车', '🏎️', 0, 4], ['landmark_q', 'platform', '环游世界大冒险', '🗺️', 1, 4], ['cont_q', 'bird', '大洲弹弓战', '🌍', 2, 4], ['geo_know', 'splat', '地理涂涂战', '🔫', 2, 4], ['pipes', 'pipes', '修建水渠', '🌊', 0, 4], ['traffic', 'traffic', '城市交通', '🚥', 1, 4], ['flag_q', 'quiz', '认国旗', '🚩', 0, 4], ['flag_pic', 'findit', '国旗找一找', '🔎', 0, 3], ['p_flag', 'memory', '国旗翻翻乐', '🃏', 1, 4], ['p_flag', 'pixel', '国旗涂色', '🎨', 1, 4],
+      ['flag_q', 'runner', '国旗跑酷', '🏃', 1, 4], ['landform_q', 'quiz', '认识地形', '🏔️', 0, 2], ['p_landform', 'connect', '地形连连看', '🔗', 0, 2], ['landform_q', 'sling', '地形弹弓', '🎯', 0, 2],
+      ['dir_q', 'quiz', '东南西北', '🧭', 1, 3], ['dir_q', 'maze', '方向迷宫', '🌀', 1, 3], ['cont_q', 'quiz', '七大洲', '🌍', 2, 4], ['s_cont', 'sort', '国家回大洲', '🗺️', 2, 4],
+      ['landmark_q', 'quiz', '世界名胜', '🗼', 1, 4], ['p_landmark', 'connect', '名胜连连看', '🔗', 1, 4], ['landmark_q', 'flappy', '环球飞跃', '✈️', 1, 4], ['geo_know', 'quiz', '地理小百科', '🌏', 0, 4],
+      ['geo_know', 'duel', '地理擂台', '🎤', 2, 4], ['geo_know', 'board', '环游飞行棋', '🎲', 2, 4], ['city_q', 'quiz', '城市名片', '🏙️', 1, 4], ['capital_q', 'quiz', '各国首都', '🏛️', 3, 4],
+      ['p_capital', 'memory', '首都翻翻乐', '🃏', 3, 4], ['prov_abbr', 'quiz', '省份简称', '🗺️', 3, 4], ['prov_cap', 'tower', '省会叠高塔', '🏗️', 3, 4], ['p_prov', 'connect', '省会连连看', '🔗', 3, 4], ['prov_abbr', 'bomb', '简称拆弹', '💣', 4, 4] ],
+    cul: [
+      ['zod_pic', 'kart', '生肖卡丁车', '🏎️', 0, 3], ['fest_food', 'platform', '节日大冒险', '🏮', 0, 4], ['story_who', 'roll', '故事滚球', '🔮', 1, 4], ['sanzi_next', 'bird', '三字经弹弓战', '📖', 0, 3], ['simon_gong', 'simon', '编钟宫商角徵羽', '🔔', 0, 4], ['hz_build', 'hzbuild', '汉字拼一拼', '🀄', 1, 4], ['dots_cn', 'dots', '一二三连点画', '✏️', 0, 2], ['zod_pic', 'quiz', '认生肖', '🐲', 0, 2], ['zod_pic', 'findit', '生肖找一找', '🔎', 0, 2], ['o_zod', 'order', '生肖排队', '🐭', 0, 4], ['zod_next', 'snake', '生肖贪吃蛇', '🐍', 0, 3],
+      ['zod_first', 'quiz', '生肖小知识', '💡', 0, 3], ['tr_sz', 'trace', '生肖描红', '🖋️', 0, 3], ['fest_food', 'quiz', '节日美食', '🥮', 0, 4], ['p_fest', 'memory', '节日翻翻乐', '🃏', 0, 4],
+      ['fest_custom', 'chest', '节日习俗', '🏮', 0, 4], ['fest_food', 'sling', '节日弹弓', '🎯', 0, 3], ['o_fest', 'order', '节日排排队', '📅', 2, 4], ['fest_date', 'quiz', '节日是哪天', '🗓️', 2, 4],
+      ['cult_pic', 'quiz', '传统宝物', '🧧', 0, 2], ['cult_find', 'findit', '宝物找一找', '🔎', 0, 2], ['story_who', 'quiz', '故事主人公', '📚', 0, 4], ['story_lesson', 'duel', '故事道理擂台', '🎤', 1, 4],
+      ['p_story', 'connect', '故事连连看', '🔗', 1, 4], ['sanzi_next', 'quiz', '三字经接龙', '📖', 0, 3], ['p_sanzi', 'memory', '三字经翻翻乐', '🃏', 1, 3], ['sp_sanzi', 'wsearch', '三字经寻宝格', '🔤', 1, 4],
+      ['s_jieqi', 'sort', '节气分四季', '🌸', 2, 4], ['jieqi_q', 'runner', '节气跑酷', '🏃', 2, 4], ['o_jieqi', 'order', '节气排队', '🌾', 3, 4], ['people_q', 'quiz', '古代名人', '🧑‍🎓', 2, 4],
+      ['invent_q', 'bomb', '四大发明拆弹', '💣', 2, 4], ['p_people', 'connect', '名人连连看', '🔗', 3, 4] ],
+    logic: [
+      ['pattern_q', 'kart', '规律卡丁车', '🏎️', 0, 4], ['odd_q', 'platform', '推理大冒险', '🍄', 0, 3], ['code_q', 'roll', '编程滚球', '🔮', 1, 4], ['sudoku_q', 'splat', '数独涂涂战', '🔫', 2, 4], ['lights', 'lights', '点灯谜题', '💡', 0, 4], ['pipes', 'pipes', '管道谜题', '🔧', 0, 4], ['make10', 'make10', '数字消消乐', '🔢', 0, 4], ['eq_build', 'equation', '24点挑战', '🃏', 2, 4], ['sym', 'sym', '对称谜题', '🪞', 1, 4], ['simon', 'simon', '记忆大师', '🧠', 0, 4], ['pattern_q', 'quiz', '找规律', '🔁', 0, 4], ['pattern_q', 'rhythm', '规律节奏', '🎵', 0, 4], ['pattern_q', 'runner', '规律跑酷', '🏃', 0, 3], ['odd_q', 'quiz', '谁不一样', '🧐', 0, 3],
+      ['odd_q', 'findit', '不一样找一找', '🔎', 0, 3], ['o_size', 'order', '从小到大', '📏', 0, 2], ['s_fly', 'sort', '会飞不会飞', '🪽', 0, 2], ['analogy_q', 'quiz', '类比推理', '🔗', 1, 4],
+      ['analogy_q', 'tower', '类比叠高塔', '🏗️', 1, 4], ['code_q', 'quiz', '机器人编程', '🤖', 1, 4], ['code_q', 'board', '编程飞行棋', '🎲', 1, 4], ['sudoku_q', 'quiz', '迷你数独', '🔢', 1, 4],
+      ['sudoku_q', 'tictac', '数独井字棋', '⭕', 2, 4], ['weekday_q', 'quiz', '星期推理', '📅', 1, 4], ['weekday_q', 'archery', '星期神箭手', '🏹', 1, 4], ['compare_logic', 'quiz', '谁最高', '📐', 2, 4],
+      ['compare_logic', 'duel', '推理擂台', '🎤', 2, 4], ['seq', 'flappy', '数字规律飞跃', '🐦', 1, 4], ['bal', 'balance', '逻辑天平', '⚖️', 1, 4], ['pattern_q', 'sling', '规律弹弓', '🎯', 0, 2],
+      ['code_q', 'maze', '编程迷宫', '🌀', 2, 4], ['sudoku_q', 'bomb', '数独拆弹', '💣', 3, 4] ],
+    job: [
+      ['job_tool', 'kart', '职业卡丁车', '🏎️', 0, 3], ['job_place', 'platform', '城市大冒险', '🏙️', 0, 4], ['tool_q', 'bird', '工具弹弓战', '🔧', 0, 4], ['budget_q', 'roll', '财商滚球', '🔮', 1, 4], ['cash_pay', 'cashier', '收银员体验', '🧾', 0, 4], ['cash_change', 'cashier', '找零小能手', '🪙', 2, 4], ['cook_math', 'cook', '厨师体验', '👨‍🍳', 0, 3], ['traffic', 'traffic', '交通安全员', '👮', 0, 3], ['job_pic', 'quiz', '这是谁', '👷', 0, 3], ['job_tool', 'quiz', '职业工具', '🧰', 0, 3], ['p_job', 'memory', '职业翻翻乐', '🃏', 0, 3], ['job_who', 'findit', '工具找主人', '🔎', 0, 3],
+      ['job_place', 'quiz', '在哪里工作', '🏢', 0, 4], ['p_job_place', 'connect', '工作地点连线', '🔗', 1, 4], ['s_job', 'sort', '职业分类', '🗂️', 1, 4], ['job_tool', 'sling', '工具弹弓', '🎯', 0, 2],
+      ['job_pic', 'runner', '职业跑酷', '🏃', 0, 3], ['place_q', 'quiz', '去哪里', '🗺️', 0, 3], ['p_place', 'pixel', '场所涂色', '🎨', 0, 3], ['place_q', 'maze', '城市迷宫', '🌀', 0, 3],
+      ['tool_q', 'quiz', '工具百宝箱', '🔧', 0, 4], ['p_tool', 'connect', '工具连连看', '🔗', 0, 4], ['tool_q', 'archery', '工具神箭手', '🏹', 1, 4], ['budget_q', 'quiz', '小小购物家', '🛍️', 1, 4],
+      ['budget_q', 'duel', '购物擂台', '🎤', 2, 4], ['money', 'board', '财商飞行棋', '🎲', 1, 4], ['money_tf', 'tf', '理财小判断', '🐷', 0, 4], ['money_tf', 'runner', '理财跑酷', '💰', 1, 4],
+      ['job_place', 'tower', '职业叠高塔', '🏗️', 1, 4], ['s_need', 'sort', '需要还是想要', '🛒', 2, 4] ],
+  };
+  const GAMES = [];
+  ZONES.forEach(z => L[z.id].forEach((r, i) => GAMES.push({ id: z.id + '-' + r[0] + '-' + r[1], zone: z.id, gen: r[0], eng: r[1], name: r[2], icon: r[3], g0: r[4], g1: r[5], idx: i })));
+  window.CATALOG = { ZONES, GAMES, zone: id => ZONES.find(z => z.id === id) };
+})();

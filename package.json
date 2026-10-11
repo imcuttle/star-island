@@ -1,0 +1,21 @@
+{
+  "name": "star-island",
+  "version": "1.0.0",
+  "private": true,
+  "description": "星星岛大冒险：5-10岁寓教于乐静态网页游戏",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "deploy": "npm run build && npx -y wrangler@4 pages deploy dist --project-name=star-island --branch=main --commit-dirty=true",
+    "preview": "npm run build && npx -y wrangler@4 pages dev dist",
+    "test": "node tools/test.mjs 0,2,4",
+    "test:grade": "node tools/test.mjs",
+    "shots": "node tools/shots.mjs",
+    "voice": "node tools/collect_voice.cjs && python3 tools/gen_voice.py /tmp/voice_all.json && sh tools/trim_voice.sh",
+    "emoji": "sh tools/fetch_emoji.sh",
+    "deploy:init": "npx -y wrangler@4 pages project create star-island --production-branch=main",
+    "fonts": "python3 tools/fonts.py",
+    "test:quick": "node tools/test.mjs 2 quiz,memory,catch,sort,order,whack,platform,kart",
+    "test:platform": "node tools/test_platform.cjs 20"
+  }
+}

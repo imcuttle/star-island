@@ -1,0 +1,95 @@
+/* ============ 点读 / 快捷键提示 / 确认框 ============ */
+.modal.confirm-m { max-width: 420px; text-align: center; }
+.modal.confirm-m .mtitle { margin: 10px 0 4px; }
+
+/* 选项上的小喇叭：点一下只朗读，不作答 */
+.csay { position: absolute; right: 6px; bottom: 6px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.88); box-shadow: 0 2px 6px rgba(0,0,0,.18); cursor: pointer; z-index: 3; transition: transform .15s; opacity: .9; }
+.csay .emo { width: 18px; height: 18px; pointer-events: none; }
+.csay:hover { transform: scale(1.15); opacity: 1; }
+/* 只给原本是静态定位的选项容器加 relative（漂浮 / 拖拽类元素本身就是 absolute，不能覆盖） */
+.choice, .tile, .cnode { position: relative; }
+.food .csay, .sortitem .csay { display: none; }
+.choices.compact .csay, .tile .csay, .cnode .csay { width: 24px; height: 24px; right: 3px; bottom: 3px; }
+.choices.compact .csay .emo, .tile .csay .emo, .cnode .csay .emo { width: 14px; height: 14px; }
+.mcard .mface.back .csay, .sortitem .csay { display: none; }
+/* 漂浮 / 移动中的目标、会被喇叭挡住内容的小标签不放喇叭（「读选项」仍可读） */
+.bub .csay, .bal .csay, .flabel .csay, .sign .csay, .drop-item .csay, .plabel .csay, .clabel .csay,
+.dn-label .csay, .bd-label .csay, .sp-label .csay, .rg-arch .csay, .ar-label .csay, .rh-note .csay,
+.sn-item .csay, .mz-tok .csay, .bo-brick .csay, .fd-it .csay, .sl-crate .csay { display: none; }
+body[data-theme="pro"] .csay, body[data-theme="neon"] .csay { background: rgba(255,255,255,.16); box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.sayall { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px 0 8px; border-radius: 20px; background: var(--panel2); font-size: 14px; font-weight: 600; }
+.sayall .emo { width: 22px; height: 22px; }
+.reading { animation: reading .9s ease; }
+.choice.reading, .tile.reading, .cnode.reading { box-shadow: 0 0 0 4px var(--accent2), var(--shadow) !important; }
+@keyframes reading { 0% { transform: scale(1); } 30% { transform: scale(1.06); } 100% { transform: scale(1); } }
+
+/* 键帽：键鼠模式下标在可选项角上 */
+.kcap { display: none; position: absolute; left: 6px; top: 6px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 6px; font: 700 12px/20px 'Fredoka', sans-serif; text-align: center; color: #2b3a67; background: linear-gradient(#fff, #e6ebf5); border: 1px solid rgba(43,58,103,.35); box-shadow: 0 2px 0 rgba(43,58,103,.35); z-index: 4; pointer-events: none; font-style: normal; letter-spacing: 0; }
+body.kbm .kcap { display: none; }
+.dbtn > .kcap, .hud-btn > .kcap, .sk > .kcap { left: auto; right: 2px; top: 2px; min-width: 18px; height: 18px; font-size: 10px; line-height: 16px; padding: 0 3px; }
+.btn > .kcap { left: auto; right: -6px; top: -8px; }
+.back > .kcap, .mclose > .kcap { display: none !important; }
+body[data-theme="pro"] .kcap, body[data-theme="neon"] .kcap { color: #eef1ff; background: linear-gradient(#3a3f7a, #23264f); border-color: rgba(255,255,255,.25); box-shadow: 0 2px 0 rgba(0,0,0,.5); }
+
+/* 悬停提示 */
+.ktip { position: fixed; z-index: 3000; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: rgba(20,24,52,.92); color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .15s, transform .15s; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+.ktip.show { opacity: 1; transform: none; }
+.ktip kbd, .kb-legend kbd { display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 5px; font: 700 12px/18px 'Fredoka', sans-serif; text-align: center; color: #1b1d48; background: linear-gradient(#fff, #dfe4f0); box-shadow: 0 2px 0 #8890b0; margin: 0 1px; }
+
+/* 大游戏按键说明 */
+.kb-legend { position: absolute; left: 12px; bottom: 12px; z-index: 30; padding: 8px 12px; border-radius: 12px; background: rgba(10,14,40,.55); color: #fff; font-size: 12px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; backdrop-filter: blur(6px); max-width: 46vw; }
+.kb-legend div { display: flex; align-items: center; gap: 8px; }
+.kb-legend span { white-space: nowrap; }
+.kb-legend b { font-weight: 600; opacity: .9; }
+@media (max-height: 520px) { .kb-legend { display: none !important; } }
+
+/* 3D 立绘加载占位：柔光呼吸，渲染好后淡入（不再先闪一下黄色表情） */
+img.av-wait { border-radius: 50%; background: radial-gradient(circle at 50% 38%, rgba(255,255,255,.9) 0 18%, rgba(200,215,240,.55) 19% 34%, transparent 35%), radial-gradient(ellipse at 50% 95%, rgba(200,215,240,.55) 0 38%, transparent 40%); animation: avwait 1.2s ease-in-out infinite; }
+@keyframes avwait { 50% { opacity: .45; } }
+img.av3d { animation: avfade .35s ease-out; }
+@keyframes avfade { from { opacity: 0; transform: scale(.96); } }
+/* 封面档案卡：大头照 */
+.pcard .hero.head { width: 92px; height: 92px; }
+.pcard .hero.head img { border-radius: 50%; background: #eef4ff; width: 100%; height: 100%; object-fit: cover; }
+
+/* ============ 封面 · 高级感版 ============
+   背景：游戏里同一座 3D 浮岛（电影感低机位）；左侧磨砂玻璃面板；右侧主角 + 伙伴 */
+.s-title .title-bg .sky { transition: opacity 1.2s; background: radial-gradient(1100px 600px at 75% 10%, #fff6e0, transparent 60%), linear-gradient(180deg, #7ccfff 0%, #bfe7ff 55%, #eaf7ff 100%); }
+.s-title .title-bg.has3d .sky { opacity: 0; }
+.t-world { position: absolute; inset: 0; }
+.t-world canvas { display: block; width: 100% !important; height: 100% !important; animation: tworld 1.6s ease-out both; filter: blur(1.6px) saturate(1.08) brightness(1.04); }
+@keyframes tworld { from { opacity: 0; transform: scale(1.06); } }
+.t-world .w3-labels { display: none; }
+.t-vignette { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(0deg, rgba(236,247,255,.92) 0%, rgba(236,247,255,.55) 9%, rgba(236,247,255,0) 26%), linear-gradient(90deg, rgba(240,248,255,.55) 0%, rgba(240,248,255,.18) 38%, rgba(240,248,255,0) 60%), radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(30,60,110,.24) 100%); }
+.s-title .t-cast { left: auto; right: 3%; bottom: 0; width: 50%; height: 92%; }
+.t-cast .av-stage { animation: tcast 1s .3s ease-out both; }
+@keyframes tcast { from { opacity: 0; transform: translateY(18px); } }
+.t-panel { position: absolute; z-index: 2; left: clamp(20px, 6vw, 96px); top: 50%; transform: translateY(-50%); width: min(440px, calc(100vw - 40px)); max-height: calc(100% - 40px); overflow: auto;
+  display: flex; flex-direction: column; gap: 14px; padding: 30px 30px 26px; border-radius: 32px;
+  background: linear-gradient(160deg, rgba(255,255,255,.78), rgba(255,255,255,.52)); backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba(255,255,255,.9); box-shadow: 0 30px 60px -20px rgba(30,60,120,.35), 0 2px 0 rgba(255,255,255,.8) inset; animation: tpanel .8s cubic-bezier(.2,1.2,.4,1) both; }
+@keyframes tpanel { from { opacity: 0; transform: translateY(-46%) scale(.97); } }
+.t-badge { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px; background: rgba(255,179,71,.18); color: #c46a12; font-size: 13px; font-weight: 700; letter-spacing: .5px; }
+.t-badge .emo { width: 16px; height: 16px; }
+.t-panel .logo { align-items: flex-start; filter: none; line-height: 1; gap: 2px; }
+.t-panel .logo .l1 { font-size: clamp(54px, 7vw, 84px); -webkit-text-stroke: 0; color: transparent; background: linear-gradient(180deg, #ffbe55 0%, #ff7a59 55%, #ff5d8f 100%); -webkit-background-clip: text; background-clip: text; text-shadow: none; filter: drop-shadow(0 3px 0 #fff) drop-shadow(0 10px 18px rgba(255,110,90,.35)); letter-spacing: 2px; }
+.t-panel .logo .l2 { font-size: clamp(30px, 3.6vw, 42px); color: #2b3a67; -webkit-text-stroke: 0; transform: none; letter-spacing: 10px; margin-left: 4px; }
+.t-panel .slogan { align-self: flex-start; background: none; padding: 0; font-size: 15px; letter-spacing: 3px; color: #5a6890; }
+.t-sub { margin-top: 6px; font-size: 13px; font-weight: 700; color: #8a94b4; letter-spacing: 1px; }
+.t-panel .plist { flex-direction: column; flex-wrap: nowrap; gap: 10px; max-width: none; }
+.t-panel .pcard { flex-direction: row; gap: 14px; min-width: 0; width: 100%; padding: 10px 14px 10px 10px; border: 0; border-radius: 20px; background: rgba(255,255,255,.85); box-shadow: 0 6px 18px -8px rgba(30,60,120,.35); text-align: left; transition: transform .2s, box-shadow .2s; }
+.t-panel .pcard:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -10px rgba(30,60,120,.45); }
+.t-panel .pcard .hero.head { width: 58px; height: 58px; flex: none; }
+.t-panel .pcard .hero.head img { background: linear-gradient(160deg, #e8f3ff, #ffeef3); }
+.pc-info { flex: 1; min-width: 0; } .t-panel .pc-name { font-size: 18px; } .t-panel .pc-meta { font-size: 12px; }
+.pc-go { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #ff7a59; color: #fff; font-size: 13px; box-shadow: 0 4px 10px rgba(255,122,89,.45); }
+.t-panel .newp { width: 100%; justify-content: center; margin-top: 4px; }
+.s-title .credit-link { color: #fff; opacity: .8; text-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.s-title .t-flat.f0 { right: 12%; left: auto; bottom: 8%; width: 240px; height: 360px; }
+@media (max-aspect-ratio: 1/1) {
+  .t-panel { top: 20px; transform: none; left: 50%; margin-left: calc(min(440px, 100vw - 40px) / -2); max-height: 58%; }
+  @keyframes tpanel { from { opacity: 0; transform: scale(.97); } }
+  .s-title .t-cast { width: 100%; right: 0; height: 46%; }
+  .t-vignette { background: linear-gradient(180deg, rgba(240,248,255,.5) 0%, rgba(240,248,255,.1) 50%, transparent 70%); }
+}
