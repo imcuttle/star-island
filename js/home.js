@@ -278,8 +278,7 @@
       H = Room(el.querySelector('.hm-3d'), el);
       if (!p.pet && p.eggs) setTimeout(() => dialog('小提示', '你有 ' + p.eggs + ' 个宠物蛋，点右边的「孵蛋」把它孵出来吧！'), 900);
       else setTimeout(() => { dialog(p.pet ? p.pet.name : '家园', p.pet ? (p.pet.food < 30 ? '肚子咕咕叫了…' : R.pick(['欢迎回家！', '今天也辛苦啦！', '要和我一起玩吗？'])) : '还没有宠物哦，升级、签到、打败 Boss 都能拿到宠物蛋！', true); }, 700);
-    });
-    Audio2.playMusic('quaint');
+    }, { music: 'quaint' });
   }
 
   /* ---------- 日期 / 月相（致敬 P3 右上角） ---------- */
@@ -467,7 +466,7 @@
   function Room(box, root) {
     const T = THREE, A = Avatar3D;
     if (!A || !A.supported()) { box.innerHTML = '<div class="hm-flat">' + (P().pet ? petImg(P().pet.kind, { size: 256 }) : '') + '</div>'; hydrate(box); return null; }
-    const rd = new T.WebGLRenderer({ antialias: true }); rd.setPixelRatio(Math.min(devicePixelRatio, 2)); rd.outputColorSpace = T.SRGBColorSpace; rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;
+    const rd = Perf.renderer({ antialias: true }, { dpr: 2, shadows: true }); rd.outputColorSpace = T.SRGBColorSpace;
     box.appendChild(rd.domElement);
     const sc = new T.Scene(); const dark = root.classList.contains('darkhour');
     const morning = () => P().hm.morning;
@@ -478,7 +477,7 @@
     // 光：暖色室内灯 + 窗外冷月光；所有家具 / 宠物 / 角色都是同一套 MToon 两阶着色，阴影偏冷紫
     const hemi = new T.HemisphereLight(dark ? 0xc8ffd8 : 0xfff0e2, dark ? 0x204838 : 0x5a4a6e, dark ? .95 : 1.1); sc.add(hemi);
     const moon = new T.DirectionalLight(dark ? 0xa8ffc0 : 0xb8c8ff, dark ? 1.3 : 1.05); moon.position.set(-1.2, 6.5, -7.5); moon.target.position.set(.4, 0, 1.2); sc.add(moon.target);
-    moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048); Object.assign(moon.shadow.camera, { left: -6.5, right: 6.5, top: 6.5, bottom: -6.5, near: 1, far: 22 }); moon.shadow.bias = -.0015; moon.shadow.normalBias = .02; sc.add(moon);
+    moon.castShadow = true; moon.shadow.mapSize.setScalar(Perf.shadowSize(2048)); Object.assign(moon.shadow.camera, { left: -6.5, right: 6.5, top: 6.5, bottom: -6.5, near: 1, far: 22 }); moon.shadow.bias = -.0015; moon.shadow.normalBias = .02; sc.add(moon);
     const key = new T.DirectionalLight(0xffe6cc, 1.35); key.position.set(5, 8, 6); sc.add(key);
     const lampL = new T.PointLight(0xffb870, 5, 5, 1.6); lampL.position.set(3.25, 1.3, -3.95); sc.add(lampL);
     const bulb = new T.PointLight(0xffd29a, 5.5, 10, 1.3); bulb.position.set(0, 3.0, 0); sc.add(bulb);
@@ -1102,7 +1101,7 @@
       _dbg: () => ({ freeze: () => { nextIdle = heroNext = 1e15; }, findPath, blockedR, nearestFree, hero, pet: petObj(), cam, sc, OBST, settle, petPerch, focus, unfocus, setMood, heroMv, petMv, SOFA, PETBED, CHAIR, BED }),
       reloadHero: () => { if (hero) { const pos = hero.position.clone(), ry = hero.rotation.y; sc.remove(hero); actors.splice(actors.indexOf(hero), 1); hero = null; A.make(heroKey, { height: 1.55, style: 'p5', hat: P().equip.hat, wand: P().equip.wand }).then(av => { if (dead) return; hero = av; av.position.copy(pos); av.rotation.y = ry; sc.add(av); actors.push(av); av.once('wave'); }); } },
       photo: () => {
-        rd.render(sc, cam); const src = rd.domElement; const c = document.createElement('canvas'); c.width = 900; c.height = 680; const x = c.getContext('2d');
+        rd.renderNow(sc, cam); const src = rd.domElement; const c = document.createElement('canvas'); c.width = 900; c.height = 680; const x = c.getContext('2d');
         x.fillStyle = '#fff'; x.fillRect(0, 0, 900, 680); const sw = src.width, sh = src.height, k = Math.max(840 / sw, 560 / sh); x.save(); x.beginPath(); x.rect(30, 30, 840, 560); x.clip(); x.drawImage(src, 30 + (840 - sw * k) / 2, 30 + (560 - sh * k) / 2, sw * k, sh * k); x.restore();
         x.fillStyle = '#0a3d91'; x.font = "32px 'ZK', sans-serif"; x.textAlign = 'center'; x.fillText((P().pet ? P().pet.name + ' 和 ' : '') + P().name + ' · ' + new Date().toLocaleDateString(), 450, 638);
         const url = c.toDataURL('image/jpeg', .9); Audio2.sfx('pop', .6); const fl = h('div', 'flash'); document.body.appendChild(fl); setTimeout(() => fl.remove(), 500);

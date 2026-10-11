@@ -70,8 +70,7 @@
     });
     foes.forEach(f => f.hp = f.mhp);
     const B = { party, foes, over: false, turn: 0, opt, lv, auto: !!(p.settings && p.settings.b5auto) };
-    App.show('battle5', el => build(el, B));
-    Audio2.playMusic('smore');
+    App.show('battle5', el => build(el, B), { music: 'battle' });
   }
 
   const PPOS = [[-1.3, 0, 1.3], [-2.5, 0, .1], [-.1, 0, 2.6], [-3.6, 0, -1.1]], FPOS = [[1.4, 0, -1.5], [2.8, 0, -.3], [.2, 0, -2.8]];

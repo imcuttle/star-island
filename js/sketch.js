@@ -136,7 +136,7 @@
   // spots：可互动地点（id、名字、图标、x、动作类型）
   S.SCENES = {
     town: {
-      n: '星星小镇', e: '🏘️', len: 3.2, lv: 1, music: 'quaint', moon: true, stars: 60,
+      n: '星星小镇', e: '🏘️', len: 3.2, lv: 1, music: 'town', moon: true, stars: 60,
       spots: [
         { id: 'bakery', n: '面包房', e: '🥐', x: .08, act: 'shop', item: ['🥐', '可颂面包', 8, 18, 6] },
         { id: 'fountain', n: '许愿喷泉', e: '⛲', x: .22, act: 'wish' },
@@ -193,7 +193,7 @@
       },
     },
     forest: {
-      n: '萤火森林', e: '🌲', len: 3, lv: 5, music: 'magic', moon: true, stars: 120, fireflies: true,
+      n: '萤火森林', e: '🌲', len: 3, lv: 5, music: 'cave', moon: true, stars: 120, fireflies: true,
       spots: [
         { id: 'mushroom', n: '蘑菇圈', e: '🍄', x: .1, act: 'find' },
         { id: 'owl', n: '猫头鹰博士', e: '🦉', x: .24, act: 'quiz', npc: '猫头鹰博士', npcE: '🦉' },

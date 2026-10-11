@@ -1,0 +1,77 @@
+/* ============ 设备适配：手势、安全区（刘海 / 底部横条）、横竖屏、小屏手机、加载层、时长锁 ============ */
+
+/* ---- 不让浏览器接管手势：下拉刷新、整页回弹、左右滑动翻页、长按菜单、双击放大 ---- */
+html, body { overscroll-behavior: none; -webkit-touch-callout: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
+input, textarea { -webkit-touch-callout: default; }
+
+/* ---- 安全区：画面整体让开刘海 / 灵动岛 / 底部横条，让出来的边用当前画面的底色补齐 ---- */
+:root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px); }
+#app { top: var(--sat); right: var(--sar); bottom: var(--sab); left: var(--sal); }
+html[data-screen="home"] body, html[data-screen="explore"] body, html[data-screen="battle5"] body { background: #0a0a0a; }
+html[data-screen="hub"] body, html[data-screen="title"] body { background: linear-gradient(180deg, #5cc4ff, #bfe7ff 60%, #3fa7e8); }
+.modal-bg { padding: calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal)); }
+#fx > .toast { top: calc(84px + var(--sat)); max-width: calc(100vw - 24px - var(--sal) - var(--sar)); }
+.act-card { right: calc(18px + var(--sar)); top: calc(92px + var(--sat)); }
+.modal { overscroll-behavior: contain; max-height: calc(100vh - 24px - var(--sat) - var(--sab)); max-height: calc(100dvh - 24px - var(--sat) - var(--sab)); -webkit-overflow-scrolling: touch; }
+
+/* ---- 统一加载层（屏幕正中间） ---- */
+.loader { position: fixed; inset: 0; z-index: 8000; display: grid; place-items: center; padding: var(--sat) var(--sar) var(--sab) var(--sal); background: rgba(15,20,50,.32); opacity: 0; transition: opacity .2s; }
+.loader.in { opacity: 1; }
+.ld-box { width: min(340px, 84vw); padding: 20px 22px 16px; border-radius: 24px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); border: var(--border); text-align: center; transform: scale(.94); transition: transform .2s; }
+body:not([data-theme="kid"]) .ld-box { background: var(--glass); backdrop-filter: var(--blur); }
+.loader.in .ld-box { transform: none; }
+.ld-ico .emo { width: 46px; height: 46px; animation: ldspin 1.4s ease-in-out infinite; }
+@keyframes ldspin { 50% { transform: rotate(180deg) scale(1.15); } 100% { transform: rotate(360deg); } }
+.ld-title { font-size: 19px; font-weight: 700; margin-top: 4px; }
+.loader .pl-btns { display: flex; gap: 10px; justify-content: center; margin-top: 12px; } .loader .pl-btns[hidden] { display: none; }
+
+/* ---- 每日时长锁 ---- */
+body.locked #fx { z-index: 9000; }
+.modal-bg.tlock-bg { z-index: 40; background: radial-gradient(circle at 50% 28%, #3c4396, #151938 72%); backdrop-filter: none; }
+.modal-bg.tlock-bg.tlock-top { z-index: 41; background: rgba(8,10,30,.6); }
+.tlock { text-align: center; }
+.tlock .rest-ico .emo { width: 64px; height: 64px; }
+.tlock .tl-parent { margin-top: 14px; }
+.tl-opts { flex-wrap: wrap; justify-content: center; gap: 10px; }
+.modal.tlock-m .tl-set { margin: 14px auto 0; display: flex; }
+.pt-btns { justify-content: flex-start; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+
+/* ---- 家长中心：音量滑块 ---- */
+.vols { display: grid; gap: 6px; margin: 6px 0 2px; }
+.vrow { display: flex; align-items: center; gap: 10px; }
+.vrow .emo { width: 24px; height: 24px; }
+.vrow span { width: 2.6em; flex: none; }
+.vrow input[type=range] { flex: 1; min-width: 0; height: 30px; accent-color: var(--accent); }
+.vrow b { width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- 小屏手机：竖屏窄屏 ---- */
+.lb { transform-origin: 50% 100%; }
+@media (max-width: 480px) {
+  .w3-label .lb { transform: scale(.8); } .w3-label.hot .lb { transform: scale(.9) translateY(-3px); }
+  .hud { padding: 8px 10px; } .hud-av { width: 40px; height: 40px; } .hud-btn { width: 40px; height: 40px; font-size: 19px; }
+  .hub-tip { bottom: 96px; }
+  .ztop, .gtop { padding: 10px 12px; gap: 8px; }
+  .ztop .back, .gtop .back, .btop .back { width: 44px; height: 44px; font-size: 21px; }
+  .modal { padding: 20px 16px 16px; } .mtitle { font-size: 22px; }
+}
+/* ---- 小屏手机：横屏（高度很矮） ---- */
+@media (max-height: 500px) {
+  .hud { padding: 6px 10px; } .hud-name, .xpbar, .hud-gems { display: none !important; }
+  .hud-me { padding: 3px 10px 3px 3px; } .hud-av { width: 36px; height: 36px; }
+  .hud-pill { padding: 3px 10px; font-size: 15px; } .hud-btn { width: 36px; height: 36px; font-size: 17px; }
+  .dock { bottom: 6px; padding: 4px 8px; border-radius: 20px; } .dbtn { min-width: 48px; padding: 2px 6px; font-size: 11px; } .dbtn .emo { width: 26px; height: 26px; }
+  .hub-tip { bottom: 64px; font-size: 13px; padding: 6px 14px; }
+  .w3-label .lb { transform: scale(.66); } .w3-label.hot .lb { transform: scale(.76) translateY(-3px); }
+  .ztop, .gtop { padding: 6px 12px; gap: 8px; }
+  .ztop .back, .gtop .back, .btop .back { width: 38px; height: 38px; font-size: 18px; }
+  .gtitle { font-size: 16px; } .gtitle .emo { width: 28px; height: 28px; } .ghearts .emo { width: 24px; height: 24px; }
+  .ztitle .emo { width: 34px; height: 34px; } .ztitle b { font-size: 19px; } .ztitle small { display: none; }
+  .stage { padding: 4px 12px 8px; gap: 8px; }
+  .modal { padding: 14px 18px 12px; } .mtitle { font-size: 20px; margin: 2px 0 8px; }
+  .modal .btn.big { font-size: 19px; padding: 11px 26px; }
+  .ld-box { padding: 14px 18px 12px; } .ld-ico .emo { width: 34px; height: 34px; }
+  .bossnode { padding: 4px 10px; } .bn-ico, .bn-ico img, .bn-ico .emo { width: 36px; height: 36px; } .ztabs { padding: 2px 16px 6px; } .ztabs button { padding: 5px 14px; }
+  .levels { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; padding-top: 2px; }
+  .lvcard { padding: 8px 6px 6px; } .lv-ico { width: 50px; height: 50px; } .lv-ico .emo { width: 38px; height: 38px; } .lv-name { font-size: 15px; }
+}

@@ -63,6 +63,13 @@
         try { const pr = c.decodeAudioData(ab.slice(0), ok, () => res(null)); if (pr && pr.catch) pr.catch(() => res(null)); } catch (e) { res(null); }
       });
     },
+    // 朗读总线：音量可调到 2 倍，后面接一个限幅器，放大了也不破音
+    bus: null,
+    voiceBus() {
+      const c = this.ac(); if (!c) return null;
+      if (!this.bus) { try { const g = c.createGain(), lim = c.createDynamicsCompressor(); lim.threshold.value = -8; lim.knee.value = 6; lim.ratio.value = 12; lim.attack.value = .003; lim.release.value = .2; g.connect(lim); lim.connect(c.destination); this.bus = g; } catch (e) { return null; } }
+      this.bus.gain.value = vol('voice') * 2; return this.bus;
+    },
     lruList: [],
     lru(url) { this.lruList.push(url); while (this.lruList.length > 80) this.buf.delete(this.lruList.shift()); },
   };
@@ -70,16 +77,25 @@
 
   /* ---------- 音效与音乐 ---------- */
   const SFX_ALIAS = { back: 'close', switch: 'click', scroll: 'whoosh' }; // 没有单独素材的音效
+  // 各首背景音乐的响度不一样（最多差 7 dB），按实测响度拉平到同一水平
+  const MUSIC_GAIN = { happy: .75, frog: 1, magic: .54, quaint: .74, smore: .55, summer: .46, battle: .63, town: .87, cave: .74, race: .93, drive: .48 };
+  // 家长中心可调的三路音量（0-100），默认：音乐偏小、朗读偏大
+  const VOL_DEF = { music: 45, voice: 80, sfx: 70 };
+  const vol = k => { const p = Store.p, v = p && p.settings.vol && p.settings.vol[k]; return (v == null ? VOL_DEF[k] : v) / 100; };
   const Audio2 = {
-    cache: {}, music: null, musicName: null, unlocked: false,
-    sfx(name, vol) {
+    cache: {}, music: null, musicName: null, unlocked: false, ducked: false,
+    VOL_DEF, vol,
+    musicLevel() { return vol('music') * .7 * (MUSIC_GAIN[this.musicName] || .7) * (this.ducked ? .3 : 1); },
+    setVol(k, v) { const p = Store.p; if (!p) return; p.settings.vol = Object.assign({}, p.settings.vol, { [k]: Math.max(0, Math.min(100, Math.round(v))) }); Store.save(); if (k === 'music' && this.music) this.music.volume = this.musicLevel(); if (k === 'voice') Bank.voiceBus(); },
+    sfx(name, vol0) {
       const p = Store.p; if (p && !p.settings.sfx) return;
       name = SFX_ALIAS[name] || name;
       const url = 'assets/sfx/' + name + '.mp3', c = Bank.ctx, b = Bank.buf.get(url);
-      vol = vol == null ? .6 : vol;
-      if (b && c && c.state === 'running') { try { const s = c.createBufferSource(), g = c.createGain(); g.gain.value = vol; s.buffer = b; s.connect(g); g.connect(c.destination); s.start(); return; } catch (e) {} }
+      const v = Math.min(1, (vol0 == null ? .6 : vol0) * vol('sfx') / .7);
+      if (!v) return;
+      if (b && c && c.state === 'running') { try { const s = c.createBufferSource(), g = c.createGain(); g.gain.value = v; s.buffer = b; s.connect(g); g.connect(c.destination); s.start(); return; } catch (e) {} }
       if (Bank.has(url) && c && !b) Bank.decode(url, true);
-      try { const a = new Audio(Bank.src(url)); a.volume = vol; a.play().catch(() => {}); } catch (e) {}
+      try { const a = new Audio(Bank.src(url)); a.volume = v; a.play().catch(() => {}); } catch (e) {}
     },
     playMusic(name) {
       const p = Store.p; this.musicName = name;
@@ -90,10 +106,11 @@
       // 先整份下载进内存再播，之后循环播放和断网都不受影响
       if (Bank.http && !Bank.has(url)) { Bank.load(url).then(ok => { if (ok && this.musicName === name && !this.music) this.playMusic(name); }); return; }
       const a = new Audio(Bank.src(url)); a.loop = true; a.volume = 0; a.dataset.n = name; this.music = a;
-      a.play().then(() => this.fade(a, .32)).catch(() => {});
+      a.play().then(() => this.fade(a, this.musicLevel())).catch(() => {});
     },
-    fade(a, to) { const st = a.volume, t0 = performance.now(); const f = () => { const k = Math.min(1, (performance.now() - t0) / 900); a.volume = st + (to - st) * k; if (k < 1) requestAnimationFrame(f); }; f(); },
-    duck(on) { if (this.music) this.music.volume = on ? .08 : .32; },
+    fade(a, to) { const st = a.volume, t0 = performance.now(); const f = () => { if (a !== this.music) return; const k = Math.min(1, (performance.now() - t0) / 900); a.volume = st + (to - st) * k; if (k < 1) requestAnimationFrame(f); }; f(); },
+    // 朗读时把音乐压低，读完恢复
+    duck(on) { this.ducked = !!on; if (this.music) this.music.volume = this.musicLevel(); },
     stopMusic() { if (this.music) { this.music.pause(); this.music = null; } },
   };
 
@@ -156,11 +173,12 @@
       if (!live()) return true;
       if (items.some((it, i) => it.f && !bufs[i])) return false;
       const many = items.filter(it => it.f).length > 1;
+      const bus = Bank.voiceBus() || c.destination;
       let t = c.currentTime + .02, last = null;
       items.forEach((it, i) => {
         if (it.gap) { t += it.gap / 1000 * .75; return; }
         const b = bufs[i], a = many ? b.lead : 0, d = (many ? b.tail : b.duration) - a;
-        const s = c.createBufferSource(), g = c.createGain(); s.buffer = b; s.connect(g); g.connect(c.destination);
+        const s = c.createBufferSource(), g = c.createGain(); s.buffer = b; s.connect(g); g.connect(bus);
         if (many) { g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .01); g.gain.setValueAtTime(1, t + Math.max(.01, d - .02)); g.gain.linearRampToValueAtTime(0, t + d); }
         s.start(t, a, d); this.nodes.push(s); last = s; t += d + (many ? .015 : 0);
       });
@@ -173,7 +191,7 @@
         if (!live()) return;
         if (it.gap) { await sleep(it.gap * .75); continue; }
         await new Promise(r => {
-          const a = new Audio(Bank.src(this.url(it.f))); this.nodes.push(a);
+          const a = new Audio(Bank.src(this.url(it.f))); a.volume = Math.min(1, vol('voice') * 1.25); this.nodes.push(a);
           let fin = false; const end = () => { if (!fin) { fin = true; clearTimeout(t); r(); } };
           const t = setTimeout(end, 15000); a.onended = end; a.onerror = end; a.onpause = end;
           const e = this.end; this.end = () => { end(); if (e) e(); };
@@ -235,9 +253,12 @@
       opt = opt || {};
       const m = h('div', 'modal-bg'), box = h('div', 'modal ' + (opt.cls || ''), html);
       if (!opt.noClose) { const x = h('button', 'mclose', '✕'); x.onclick = () => close(); box.appendChild(x); }
-      m.appendChild(box); $('#fx').appendChild(m); Audio2.sfx('open', .4);
-      requestAnimationFrame(() => m.classList.add('in'));
-      function close(v) { m.classList.remove('in'); setTimeout(() => m.remove(), 250); Audio2.sfx('close', .3); if (opt.onClose) opt.onClose(v); }
+      m.appendChild(box); $('#fx').appendChild(m);
+      // 弹窗里的图片 / 3D 立绘全部就绪才显示（等待期间盖着透明遮罩，点不到下面）
+      const ready = opt.instant || !window.Preload ? Promise.resolve() : null;
+      let live = true;
+      (ready || Promise.resolve().then(() => Preload.settleBox(box))).then(() => { if (!live) return; Audio2.sfx('open', .4); requestAnimationFrame(() => m.classList.add('in')); });
+      function close(v) { live = false; m.classList.remove('in'); setTimeout(() => m.remove(), 250); Audio2.sfx('close', .3); if (opt.onClose) opt.onClose(v); }
       m.addEventListener('pointerdown', e => { if (e.target === m && !opt.noClose) close(); });
       hydrate(box);
       return { el: box, close };
@@ -392,5 +413,5 @@
   const leaveHooks = []; const onLeave = f => leaveHooks.push(f); const leave = () => leaveHooks.splice(0).forEach(f => { try { f(); } catch (e) { console.error(e); } });
   // 家长中心「放开全部限制」：等级 / 星星 / 宝石门槛和休息提醒全部跳过
   const free = () => !!(Store.p && Store.p.settings && Store.p.settings.free);
-  window.Core = { h, sleep, today, esc, Store, Audio2, Bank, Voice, E, vis, hydrate, clockSVG, emoCode, emoSrc, UI, theme, onLeave, leave, ReadAloud, Keys, sayOf, free };
+  window.Core = { h, sleep, today, esc, Store, Audio2, Bank, Voice, E, vis, hydrate, clockSVG, emoCode, emoSrc, UI, theme, onLeave, leave, ReadAloud, Keys, sayOf, free, Perf: window.Perf };
 })();

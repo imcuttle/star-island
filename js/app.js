@@ -62,6 +62,8 @@
   const themeOf = p => { if (!p) return 'kid'; const t = p.settings.theme; if (t && t !== 'auto' && THEMES.some(x => x[0] === t)) return t; return p.grade <= 1 ? 'kid' : p.grade === 2 ? 'mid' : 'pro'; };
   function applyTheme() { document.body.dataset.theme = themeOf(P()); }
   const heroOf = id => HEROES.find(x => x.id === id) || HEROES[0];
+  // 封面、存档卡片、选角色用预渲染好的图（tools/hero_cards.mjs）：大头照 + 挥手动图，不用为了看一眼先下载 3D 模型（每个 2-4MB）
+  const heroCard = (H, kind) => 'assets/img/hero/' + H.id + (kind === 'head' ? '_head' : '') + '.webp';
   // 3D 立绘：先显示 2D 图，Avatar3D 渲染好后自动替换（跟随当前画风）
   const heroModel = p => { const H = heroOf(p && p.hero); return H.m && window.Avatar3D && Avatar3D.has(H.m) ? H.m : null; };
   function heroAvatar(H, pose, cls) {
@@ -130,17 +132,22 @@
   let curScreen = null, showTok = 0;
   // 切换场景：① 先停在当前画面，把新场景要用的素材全部下载好（Preload.forScene，进度框）
   //          ② 再搭建新场景，等它自己发起的加载（立绘、3D 模型、贴图）也全部完成才淡入；el.ready 在淡入时 resolve，玩法 / 计时从这之后开始
+  //          ③ extra.music 在淡入时开始播放；返回的 Promise 在场景真正显示出来后 resolve（被更新的切换取代则不 resolve）
   function show(name, build, extra) {
     const tok = ++showTok;
-    Preload.gate(Preload.forScene(name, extra), () => {
+    return new Promise(done => Preload.gate(Preload.forScene(name, extra), () => {
       if (tok !== showTok) return;
       if ((curScreen === 'hub' || curScreen === 'title') && window.World3D) World3D.dispose();
-      Voice.stop(); Core.leave(); curScreen = name;
+      Voice.stop(); Core.leave(); curScreen = name; document.documentElement.dataset.screen = name; // 安全区（刘海 / 底部横条）的底色跟着场景换
       const el = h('div', 'screen s-' + name); app().innerHTML = ''; app().appendChild(el);
       let ready; el.ready = new Promise(r => { ready = r; });
       try { build(el); hydrate(el); } catch (e) { console.error(e); }
-      Preload.settle(el).then(() => { if (!el.isConnected) return; requestAnimationFrame(() => el.classList.add('in')); ready(el); });
-    });
+      Preload.settle(el).then(() => {
+        if (!el.isConnected) return; requestAnimationFrame(() => el.classList.add('in'));
+        if (extra && extra.music) Audio2.playMusic(extra.music);
+        ready(el); done(el);
+      });
+    }));
   }
 
   /* ================= 标题 & 角色 ================= */
@@ -156,11 +163,11 @@
         '<button class="btn big newp">' + (profs.length ? '＋ 新的冒险者' : '开始冒险') + '</button></div><div class="credit-link">素材致谢</div>';
       const list = el.querySelector('.plist');
       profs.forEach(p => {
-        const c = h('button', 'pcard', heroHTML(p, 'front', 'sm head') + '<div class="pc-info"><div class="pc-name">' + esc(p.name) + '</div><div class="pc-meta">Lv.' + p.lv + ' · ' + GRADES[p.grade] + ' · ⭐' + totalStars(p) + '</div></div><span class="pc-go">▶</span>');
+        const c = h('button', 'pcard', '<div class="hero sm head"><img class="hero-img" src="' + heroCard(heroOf(p.hero), 'head') + '" draggable="false"></div>' + '<div class="pc-info"><div class="pc-name">' + esc(p.name) + '</div><div class="pc-meta">Lv.' + p.lv + ' · ' + GRADES[p.grade] + ' · ⭐' + totalStars(p) + '</div></div><span class="pc-go">▶</span>');
         c.onclick = () => { Store.db.cur = p.id; save(); enter(); };
         list.appendChild(c);
       });
-      el.querySelector('.newp').onclick = () => createProfile();
+      el.querySelector('.newp').onclick = createProfile;
       el.querySelector('.credit-link').onclick = credits;
       const startWorld = () => {
         if (!el.isConnected || !window.World3D || !World3D.supported()) return;
@@ -169,69 +176,42 @@
       };
       if (document.readyState === 'complete') setTimeout(startWorld, 60); else addEventListener('load', startWorld, { once: true });
       const cur = Store.db.cur && Store.db.profiles[Store.db.cur] || profs[profs.length - 1];
-      titleCast(el.querySelector('.t-cast'), cur && cur.hero);
-    });
-    Audio2.playMusic('happy');
+      el.ready.then(() => titleCast(el.querySelector('.t-cast'), cur && cur.hero));
+    }, { music: 'happy' });
   }
-  // 封面演员：主角站中间（有存档就是自己的角色），两位伙伴在身后两侧，各自做真人动捕的小动作
+  // 封面演员：主角站中间（有存档就是自己的角色），两位伙伴在身后两侧；用预渲染的挥手动图，不加载 3D 模型
+  // 画面淡入后才开始下载，三个人错开出场，挥手也就错开了
   function titleCast(box, mine) {
-    if (document.readyState !== 'complete') return addEventListener('load', () => box.isConnected && titleCast(box, mine), { once: true });
-    const pool = HEROES.filter(H => Avatar3D.isVRM && Avatar3D.isVRM(H.m));
-    const main = pool.find(H => H.id === mine) || pool.find(H => H.id === 'k-pink') || pool[0];
-    const mates = [main.m === 'vr_hairm' ? 'vr_vivi' : 'vr_hairm', main.m === 'vr_vita' ? 'vr_fumiriya' : 'vr_vita'].map(m => pool.find(H => H.m === m)).filter(Boolean);
-    const ok = window.Avatar3D && Avatar3D.supported() && !window.__TEST_LITE && main;
-    if (!ok) { box.innerHTML = '<div class="t-flat f0">' + heroAvatar(main || HEROES[0], 'front') + '</div>'; hydrate(box); return; }
-    const st3 = Avatar3D.stage(box, { camZ: 6.6, camY: 1.0, lookY: 1.12, fov: 26, style: 'kid' });
-    // 脚下柔和的接触阴影
-    const sh = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 4, 64, 64, 62); g.addColorStop(0, 'rgba(20,40,80,.42)'); g.addColorStop(1, 'rgba(20,40,80,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); return t; })();
-    const LINE = [[main, .05, .45, -.12, ['wave', 'cheer', 'yes', 'idle2']], [mates[0], -.8, -.3, .45, ['think', 'idle2', 'yes']], [mates[1], .85, -.4, -.5, ['cheer', 'idle2', 'bow']]];
-    LINE.forEach(([H, x, z, ry, moves], i) => {
-      if (!H) return;
-      const disc = new THREE.Mesh(new THREE.PlaneGeometry(1.1, .7), new THREE.MeshBasicMaterial({ map: sh, transparent: true, depthWrite: false }));
-      disc.rotation.x = -Math.PI / 2; disc.position.set(x, .005, z); st3.scene.add(disc);
-      st3.add(H.m, { height: i ? 1.5 : 1.58, x, z, ry }).then(av => {
-        if (!av) return;
-        av.play('idle'); av.mixer.update(Math.random() * 3);
-        let t = 2.5 + i * 1.7, k = 0;
-        av.tick = dt => { t -= dt; if (t <= 0) { const n = moves[k++ % moves.length]; t = 5 + Math.random() * 3; if (av.has(n)) av.once(n); } };
-      });
-    });
+    const main = HEROES.find(H => H.id === mine) || heroOf('k-pink');
+    const mates = [main.id === 'k-green' ? 'k-beige' : 'k-green', main.id === 'f-astro' ? 'k-yellow' : 'f-astro'].map(heroOf);
+    [[main, 0], [mates[0], 700], [mates[1], 1500]].forEach(([H, delay], i) => setTimeout(() => {
+      if (!box.isConnected) return;
+      const a = h('div', 't-actor a' + i), img = new Image(); img.draggable = false;
+      img.onload = () => a.classList.add('in');
+      img.src = heroCard(H); a.appendChild(img); box.appendChild(a);
+    }, delay));
   }
   function credits() {
-    UI.modal('<div class="mtitle">素材致谢</div><div class="credits">美术、音效与 3D 模型：<b>Kenney.nl</b>（CC0，含 Toy Car / Racing / Mini Characters / Blaster / Physics 等素材包）<br>物理引擎：Matter.js（MIT）<br>表情图标：<b>Twemoji</b>（CC-BY 4.0, Twitter/X & jdecked）、<b>Microsoft Fluent Emoji</b>（MIT）<br>背景音乐：OpenGameArt.org CC0 —— tinyworlds《Happy Adventure》、neonarkade《Quaint Town》、lushogames《SummerTown》《FrogTown》、controllerhead《Magic Town》<br>3D 引擎：three.js（MIT）<br>字体：站酷快乐体、马善政、龙藏体、Fredoka、Gaegu、Fusion Pixel（OFL）<br>带骨骼动画的 3D 角色与宠物：<b>Quaternius</b>（CC0；魔法师、科学家两个模型为 CC-BY 3.0，作者 Quaternius，经 poly.pizza 获取）<br>动漫风 3D 角色：<b>VRoid Project（pixiv）</b>官方样例与预设模型（CC0 / VRoid 样例模型使用条款，允许改编与再分发）；<b>siroihakumai</b>「Savi China」「Savi doctor」（VRoid Hub，允许再分发与修改）；three-vrm（MIT）<br>真人动捕动作：<b>Ready Player Me Animation Library</b>（免费使用）<br>语音：Microsoft Edge 神经网络语音「晓晓 / Ava」（预生成）</div>');
+    UI.modal('<div class="mtitle">素材致谢</div><div class="credits">美术、音效与 3D 模型：<b>Kenney.nl</b>（CC0，含 Toy Car / Racing / Mini Characters / Blaster / Physics 等素材包）<br>物理引擎：Matter.js（MIT）<br>表情图标：<b>Twemoji</b>（CC-BY 4.0, Twitter/X & jdecked）、<b>Microsoft Fluent Emoji</b>（MIT）<br>背景音乐：OpenGameArt.org CC0 —— tinyworlds《Happy Adventure》、neonarkade《Quaint Town》、lushogames《SummerTown》《FrogTown》、controllerhead《Magic Town》、cynicmusic《Battle Theme A》《Town Theme RPG》《Crystal Cave》、Zane Little Music《Pixel Sprinter》《Detour》<br>3D 引擎：three.js（MIT）<br>字体：站酷快乐体、马善政、龙藏体、Fredoka、Gaegu、Fusion Pixel（OFL）<br>带骨骼动画的 3D 角色与宠物：<b>Quaternius</b>（CC0；魔法师、科学家两个模型为 CC-BY 3.0，作者 Quaternius，经 poly.pizza 获取）<br>动漫风 3D 角色：<b>VRoid Project（pixiv）</b>官方样例与预设模型（CC0 / VRoid 样例模型使用条款，允许改编与再分发）；<b>siroihakumai</b>「Savi China」「Savi doctor」（VRoid Hub，允许再分发与修改）；three-vrm（MIT）<br>真人动捕动作：<b>Ready Player Me Animation Library</b>（免费使用）<br>语音：Microsoft Edge 神经网络语音「晓晓 / Ava」（预生成）</div>');
   }
   function createProfile() {
     const st = { name: '', grade: 1, hero: 'k-green' };
     const m = UI.modal('<div class="mtitle">创建你的冒险者</div><div class="cp"><label>名字</label><input class="inp" maxlength="8" placeholder="输入你的名字"><label>年级</label><div class="gsel"></div><label>选择角色</label><div class="hpick"><div class="hsel"></div><div class="hprev"><div class="hp-stage"></div><div class="hp-info"></div></div></div><button class="btn big go">开始冒险！</button></div>', { cls: 'wide' });
     const gs = m.el.querySelector('.gsel'), hs = m.el.querySelector('.hsel'), hpStage = m.el.querySelector('.hp-stage'), hpInfo = m.el.querySelector('.hp-info');
-    GRADES.forEach((g, i) => { const b = h('button', 'chip' + (i === st.grade ? ' on' : ''), g + '<small>' + AGES[i] + '</small>'); b.onclick = () => { st.grade = i; $$('.chip', gs).forEach(x => x.classList.remove('on')); b.classList.add('on'); document.body.dataset.theme = i <= 1 ? 'kid' : i === 2 ? 'mid' : 'pro'; drawHeroes(); }; gs.appendChild(b); });
-    // 网格只放大头照；右侧实时预览全身（慢慢转圈，选中时挥手）并说明差异
-    let stage3 = null, curAv = null, prevTok = 0;
-    function preview(H, greet) {
-      const tok = ++prevTok;
-      const look = '同一个角色的立绘';
-      const has3 = H.m && window.Avatar3D && Avatar3D.has(H.m), use3 = has3 && Avatar3D.supported();
+    GRADES.forEach((g, i) => { const b = h('button', 'chip' + (i === st.grade ? ' on' : ''), g + '<small>' + AGES[i] + '</small>'); b.onclick = () => { st.grade = i; $$('.chip', gs).forEach(x => x.classList.remove('on')); b.classList.add('on'); document.body.dataset.theme = i <= 1 ? 'kid' : i === 2 ? 'mid' : 'pro'; }; gs.appendChild(b); });
+    // 网格只放大头照；右侧是选中角色的挥手动图（只下载点到的那一张，也不等它下载完就先显示弹窗）并说明差异
+    // 进游戏以后才加载选中角色的 3D 模型
+    function preview(H) {
+      const has3 = H.m && window.Avatar3D && Avatar3D.has(H.m);
       hpInfo.innerHTML = '<div class="hp-name">' + esc(H.n) + '<span class="hp-tag">' + esc(H.t) + '</span></div><div class="hp-desc">' + esc(H.d) + '</div>' +
-        '<ul class="hp-diff"><li>3D 场景：' + (has3 ? (Avatar3D.isVRM(H.m) ? '动漫风全身 3D 模型，会走、跑、跳、跳舞、挥手、眨眼' : '全身 3D 模型，带走、跑、跳、挥手动作') : '平面形象') + '</li><li>2D 小游戏：' + look + '</li><li>帽子、魔法杖都能戴，能力和其他角色完全一样</li></ul>';
-      hydrate(hpInfo);
-      if (!use3) { if (stage3) { stage3.dispose(); stage3 = null; curAv = null; } hpStage.innerHTML = heroAvatar(H, 'front', 'big'); hydrate(hpStage); return; }
-      if (!stage3) { hpStage.innerHTML = ''; stage3 = Avatar3D.stage(hpStage, { camZ: 5.2, camY: 1.1, lookY: .85, fov: 30 }); }
-      stage3.add(H.m, { height: 1.6, ry: .4 }).then(av => {
-        if (!av) return;
-        if (tok !== prevTok) { stage3.scene.remove(av); stage3.actors.splice(stage3.actors.indexOf(av), 1); return; }
-        if (curAv) { stage3.scene.remove(curAv); stage3.actors.splice(stage3.actors.indexOf(curAv), 1); }
-        curAv = av; av.tick = dt => { av.rotation.y += dt * .6; };
-        if (greet && av.once) av.once('wave');
-      });
+        '<ul class="hp-diff"><li>3D 场景：' + (has3 ? (Avatar3D.isVRM(H.m) ? '动漫风全身 3D 模型，会走、跑、跳、跳舞、挥手、眨眼' : '全身 3D 模型，带走、跑、跳、挥手动作') : '平面形象') + '</li><li>2D 小游戏：同一个角色的立绘</li><li>帽子、魔法杖都能戴，能力和其他角色完全一样</li></ul>';
+      const img = new Image(); img.className = 'hp-anim'; img.draggable = false; img.dataset.nowait = 1;
+      img.onload = () => img.classList.add('in');
+      img.src = heroCard(H);
+      hpStage.innerHTML = ''; hpStage.appendChild(img);
     }
-    function drawHeroes() {
-      hs.innerHTML = '';
-      HEROES.forEach(H => { const b = h('button', 'hopt' + (H.id === st.hero ? ' on' : ''), heroAvatar(H, 'front', 'head') + '<span>' + H.n + '</span>'); b.onclick = () => { st.hero = H.id; $$('.hopt', hs).forEach(x => x.classList.remove('on')); b.classList.add('on'); Audio2.sfx('select', .4); preview(H, true); }; hs.appendChild(b); });
-      hydrate(hs);
-      if (stage3) { stage3.dispose(); stage3 = null; curAv = null; } // 换年级会换画风，重建舞台
-      preview(heroOf(st.hero));
-    }
-    drawHeroes();
+    HEROES.forEach(H => { const b = h('button', 'hopt' + (H.id === st.hero ? ' on' : ''), '<img class="hero-img" src="' + heroCard(H, 'head') + '" draggable="false"><span>' + H.n + '</span>'); b.onclick = () => { st.hero = H.id; $$('.hopt', hs).forEach(x => x.classList.remove('on')); b.classList.add('on'); Audio2.sfx('select', .4); preview(H); }; hs.appendChild(b); });
+    preview(heroOf(st.hero));
     m.el.querySelector('.go').onclick = () => {
       const name = m.el.querySelector('.inp').value.trim();
       if (!name) { m.el.querySelector('.inp').classList.add('shake'); Voice.say('先写下你的名字吧'); return; }
@@ -240,8 +220,8 @@
   }
   function enter(isNew) {
     const p = P(); applyTheme(); decayPet(p); ensureDaily(p); save(); prepHeroShots(p);
-    hub();
-    if (isNew) setTimeout(story, 600); else setTimeout(signIn, 800);
+    // 主地图完全显示出来以后再弹故事 / 签到
+    hub().then(() => { checkLock(); if (lockM) return; setTimeout(isNew ? story : signIn, 300); });
   }
   function story() {
     const m = UI.modal('<div class="story"><div class="st-pic">' + E('🐲', 'st-dragon') + '</div><div class="st-text">很久很久以前，星星岛上有十颗<b>知识宝石</b>，让岛上充满智慧的光芒。<br><br>可是，爱捣蛋的<b>糊涂龙</b>把宝石都偷走了，还派小怪兽守在十个区域！<br><br>勇敢的 <b>' + esc(P().name) + '</b>，快去闯关、打败守关怪兽，夺回宝石吧！</div><button class="btn big go">出发！</button></div>', { cls: 'wide' });
@@ -281,7 +261,7 @@
   /* ================= 主地图 ================= */
   function hub() {
     applyTheme();
-    show('hub', el => {
+    return show('hub', el => {
       el.innerHTML = '<div class="world"></div>' + hudHTML() +
         '<div class="dock">' + [['home', '🏠', '家园', 'h'], ['shop', '🛒', '商店', 's'], ['gacha', '🎰', '扭蛋', 'g'], ['album', '📒', '图鉴', 'b'], ['task', '📋', '任务', 't'], ['play', '🎹', '乐园', 'p'], ['badge', '🏅', '成就', 'c']].map(d => '<button class="dbtn d-' + d[0] + '" data-d="' + d[0] + '" data-key="' + d[3] + '" data-say="' + d[2] + '">' + E(d[1]) + '<span>' + d[2] + '</span></button>').join('') + '</div>' +
         '<div class="hub-tip"></div>';
@@ -299,8 +279,7 @@
         } catch (e) { console.error(e); flatMap(W, labels); }
       } else flatMap(W, labels);
       const tip = el.querySelector('.hub-tip'); tip.innerHTML = '点一点小岛开始冒险 · 拖动可以旋转'; setTimeout(() => tip.classList.add('out'), 4500);
-    });
-    Audio2.playMusic('happy');
+    }, { music: 'happy' });
   }
   function flatMap(W, labels) { W.classList.add('flat'); W.innerHTML = '<div class="flatgrid">' + labels.map(l => '<div class="flatcell" data-z="' + l.id + '">' + l.html + '</div>').join('') + '</div>'; hydrate(W); W.onclick = e => { const c = e.target.closest('.flatcell'); if (c) pickZone(c.dataset.z); }; }
   function pickZone(id) {
@@ -348,8 +327,7 @@
       };
       el.querySelector('.ztabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; zoneFilter = b.dataset.f; Audio2.sfx('switch', .3); draw(); };
       draw();
-    });
-    Audio2.playMusic(z.music);
+    }, { music: z.music });
     Voice.say(z.name);
   }
   function tilt(el) {
@@ -384,22 +362,16 @@
     const p = P(), z = CATALOG.zone(g.zone);
     show('game', el => {
       el.style.setProperty('--zc', z.color);
-      el.innerHTML = '<div class="gtop"><button class="back">' + E('✖️') + '</button><div class="gtitle">' + E(g.icon) + '<b>' + g.name + '</b></div><div class="gprog"></div><div class="ghearts"></div>' + (p.inv.hint ? '<button class="hintbtn" data-key="h" data-tip="提示卡：去掉一个错误选项">' + E('💡') + '<b>' + p.inv.hint + '</b></button>' : '') + '</div><div class="stage"></div><div class="gpet"></div>';
+      el.innerHTML = '<div class="gtop"><button class="back">' + E('✖️') + '</button><div class="gtitle">' + E(g.icon) + '<b>' + g.name + '</b></div><div class="gprog"></div><div class="ghearts"></div>' + (p.inv.hint ? '<button class="hintbtn" data-key="h" data-tip="提示卡：去掉一个错误选项">' + E('💡') + '<b>' + p.inv.hint + '</b></button>' : '') + '</div><div class="stage"></div>';
       const S = new Engines.Session(g, data, p.grade, el, res => gameOver(g, res, S));
       S.stage = el.querySelector('.stage'); S.renderHearts(); S.more = () => CONTENT.G[g.gen](p.grade); window.__S = S;
       el.querySelector('.back').onclick = async () => { if (await UI.confirm('要退出这一局吗？')) { S.over = true; Voice.stop(); zoneScreen(g.zone); } };
       const hb = el.querySelector('.hintbtn');
       if (hb) hb.onclick = () => { const wrongs = $$('[data-ok="0"]:not(.hinted)', S.stage); if (!wrongs.length || !P().inv.hint) return; const w = R.pick(wrongs); w.classList.add('hinted'); P().inv.hint--; save(); hb.querySelector('b').textContent = P().inv.hint; Audio2.sfx('magic', .4); if (!P().inv.hint) hb.remove(); };
-      if (p.pet) {
-        const gp = el.querySelector('.gpet'); gp.innerHTML = petHTML(p.pet, 'mini'); hydrate(gp);
-        // 大游戏左下角有按键说明和触屏摇杆，宠物挪到顶部栏
-        if (Engines.BIG.has(g.eng)) { gp.classList.add('in-top'); el.querySelector('.gtop').insertBefore(gp, el.querySelector('.ghearts')); }
-      }
       // 画面和素材全部就绪后才开始玩法（计时 / 倒计时都在玩法里）
       el.ready.then(() => setTimeout(() => { if (!S.over && el.isConnected) Engines.ENGINES[g.eng](S, data); }, 300));
-    });
+    }, { music: CATALOG.gameMusic(g) });
   }
-  window.Pet = { cheer(ok) { const gp = $('.gpet .pet'); if (!gp) return; gp.classList.remove('hop', 'sad'); void gp.offsetWidth; gp.classList.add(ok ? 'hop' : 'sad'); } };
   function gameOver(g, res, S) {
     const p = P();
     const first = !p.plays[g.id];
@@ -452,7 +424,7 @@
   function battleQs(pool, n) { const out = []; for (let i = 0; i < n * 3 && out.length < n; i++) { const g = R.pick(pool); try { const q = R.pick(CONTENT.G[g.gen](P().grade)); if (q && q.ch) out.push(q); } catch (e) {} } return out; }
   function battle(zid, tier) {
     const z = zid === 'dragon' ? DRAGON : CATALOG.zone(zid), bank = battleQs(battlePool(zid), 40);
-    Preload.gate(Preload.forBattle(z, z.boss.sprite, zid === 'dragon' ? 'smore' : 'frog', bank), () => battleRun(zid, tier, bank));
+    Preload.gate(Preload.forBattle(z, z.boss.sprite, 'battle', bank), () => battleRun(zid, tier, bank));
   }
   function battleRun(zid, tier, bank) {
     const p = P(); const isDragon = zid === 'dragon';
@@ -530,8 +502,7 @@
       };
       // 场景素材全部就绪、画面揭开以后才开场
       el.ready.then(() => Voice.say(isDragon ? '糊涂龙出现了！用你的智慧打败它！' : z.boss.name + '出现了！答对题目就能攻击它！')).then(() => setTimeout(ask, 200));
-    });
-    Audio2.playMusic(isDragon ? 'smore' : 'frog');
+    }, { music: 'battle' });
   }
   function battleWin(zid, tier, isDragon, z) {
     const p = P(); let rewards = [];
@@ -622,8 +593,7 @@
       };
       el.querySelector('.ztabs').onclick = e => { const b = e.target.closest('button'); if (b) { shopTab = b.dataset.t; Audio2.sfx('switch', .3); draw(); } };
       draw();
-    });
-    Audio2.playMusic('quaint');
+    }, { music: 'town' });
   }
 
   /* ================= 扭蛋 & 图鉴 ================= */
@@ -795,16 +765,19 @@
   }
 
   /* ================= 家长中心 ================= */
+  // 家长验证题：两位数 × 两位数，小朋友不容易算出来
+  function parentQuiz() { const a = R.int(12, 29), b = R.int(12, 19); return { html: '请家长回答：<b class="latin">' + a + ' × ' + b + ' = ?</b>', ok: v => String(v).trim() !== '' && +v === a * b }; }
   function parentGate() {
-    const a = R.int(6, 9), b = R.int(6, 9);
-    const m = UI.modal('<div class="mtitle">' + E('👨‍👩‍👧') + ' 家长中心</div><p class="c">请家长回答：<b class="latin">' + a + ' × ' + b + ' = ?</b></p><input class="inp c" inputmode="numeric" maxlength="3"><button class="btn big go">进入</button><div class="quickset"><button class="btn ghost sm t-mus"></button><button class="btn ghost sm t-sfx"></button><button class="btn ghost sm t-voi"></button></div>');
+    const pq = parentQuiz();
+    const m = UI.modal('<div class="mtitle">' + E('👨‍👩‍👧') + ' 家长中心</div><p class="c">' + pq.html + '</p><input class="inp c" inputmode="numeric" maxlength="3"><button class="btn big go">进入</button><div class="quickset"><button class="btn ghost sm t-mus"></button><button class="btn ghost sm t-sfx"></button><button class="btn ghost sm t-voi"></button></div>');
     const p = P(); const lab = () => { m.el.querySelector('.t-mus').innerHTML = (p.settings.music ? '🎵 音乐开' : '🔇 音乐关'); m.el.querySelector('.t-sfx').innerHTML = (p.settings.sfx ? '🔔 音效开' : '🔕 音效关'); m.el.querySelector('.t-voi').innerHTML = (p.settings.voice ? '🗣️ 朗读开' : '🤐 朗读关'); };
     lab();
     m.el.querySelector('.t-mus').onclick = () => { p.settings.music = !p.settings.music; save(); p.settings.music ? Audio2.playMusic(Audio2.musicName || 'happy') : Audio2.stopMusic(); lab(); };
     m.el.querySelector('.t-sfx').onclick = () => { p.settings.sfx = !p.settings.sfx; save(); lab(); };
     m.el.querySelector('.t-voi').onclick = () => { p.settings.voice = !p.settings.voice; save(); lab(); };
-    m.el.querySelector('.go').onclick = () => { if (+m.el.querySelector('.inp').value === a * b) { m.close(); parentPanel(); } else m.el.querySelector('.inp').classList.add('shake'); };
+    m.el.querySelector('.go').onclick = () => { if (pq.ok(m.el.querySelector('.inp').value)) { m.close(); parentPanel(); } else shakeInp(m.el.querySelector('.inp')); };
   }
+  function shakeInp(i) { i.classList.remove('shake'); void i.offsetWidth; i.classList.add('shake'); i.value = ''; Audio2.sfx('wrong', .3); }
   function parentPanel() {
     const p = P();
     const m = UI.modal('<div class="mtitle">家长中心</div><div class="pset">' +
@@ -812,30 +785,89 @@
       '<label>画面风格</label><div class="gsel th">' + [['auto', '跟随年级']].concat(THEMES.map(t => [t[0], t[1]])).map(t => '<button class="chip' + (p.settings.theme === t[0] ? ' on' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>点读（悬停 / 长按题目选项时朗读，适合还不识字的小朋友）</label><div class="gsel ra">' + [['auto', '跟随年级'], ['on', '开'], ['off', '关']].map(t => '<button class="chip' + ((p.settings.readAloud == null ? 'auto' : p.settings.readAloud ? 'on' : 'off') === t[0] ? ' on' : '') + '" data-r="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>大游戏操作方式</label><div class="gsel ctl">' + [['auto', '自动识别'], ['touch', '触屏按钮'], ['kbm', '键盘鼠标']].map(t => '<button class="chip' + ((p.settings.ctrl || 'auto') === t[0] ? ' on' : '') + '" data-k="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
-      '<label>每日游戏时长提醒</label><div class="gsel lim">' + [[15, '15分钟'], [30, '30分钟'], [45, '45分钟'], [60, '60分钟'], [0, '不限制']].map(t => '<button class="chip' + (p.settings.limit === t[0] ? ' on' : '') + '" data-l="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
+      '<label>音量</label><div class="vols">' + [['music', '🎵', '音乐'], ['voice', '🗣️', '朗读'], ['sfx', '🔔', '音效']].map(v => '<div class="vrow">' + E(v[1]) + '<span>' + v[2] + '</span><input type="range" min="0" max="100" step="5" data-v="' + v[0] + '" value="' + Math.round(Audio2.vol(v[0]) * 100) + '"><b>' + Math.round(Audio2.vol(v[0]) * 100) + '</b></div>').join('') + '</div>' +
+      '<label>3D 画质（手机发热、卡顿时选「省电流畅」）</label><div class="gsel gfx">' + [['auto', '自动'], ['low', '省电流畅'], ['mid', '均衡'], ['high', '高清']].map(t => '<button class="chip' + ((p.settings.gfx || 'auto') === t[0] ? ' on' : '') + '" data-q="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
+      '<label>每日游戏时长（时间到了会锁住，家长验证后才能继续玩）</label><div class="gsel lim">' + [[15, '15分钟'], [30, '30分钟'], [45, '45分钟'], [60, '60分钟'], [0, '不限制']].map(t => '<button class="chip' + (p.settings.limit === t[0] ? ' on' : '') + '" data-l="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
       '<label>放开全部限制（等级解锁、Boss 星星要求、糊涂龙宝石要求、休息提醒都不再限制）</label><div class="gsel fre">' + [[1, '🔓 全部放开'], [0, '正常限制']].map(t => '<button class="chip' + (!!p.settings.free === !!t[0] ? ' on' : '') + '" data-f="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' +
-      '<p class="dim">今日已玩 ' + Math.round((p.playtime.date === today() ? p.playtime.ms : 0) / 60000) + ' 分钟 · 累计 ' + p.totalGames + ' 局</p>' +
+      '<p class="dim pt-line"></p><div class="r-btns pt-btns"><button class="btn ghost sm pt-add">今天多玩 15 分钟</button><button class="btn ghost sm pt-zero">今日时长清零</button></div>' +
       '<div class="r-btns"><button class="btn ghost ex">导出存档</button><button class="btn ghost im">导入存档</button><button class="btn ghost del">删除此角色</button></div></div>', { cls: 'wide' });
     m.el.querySelector('.gsel').onclick = e => { const b = e.target.closest('[data-g]'); if (!b) return; p.grade = +b.dataset.g; save(); m.close(); applyTheme(); hub(); UI.toast('已切换到' + GRADES[p.grade]); };
     m.el.querySelector('.th').onclick = e => { const b = e.target.closest('[data-t]'); if (!b) return; p.settings.theme = b.dataset.t; save(); m.close(); applyTheme(); hub(); };
     m.el.querySelector('.ctl').onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; p.settings.ctrl = b.dataset.k; save(); $$('.ctl .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); };
+    $$('.vols input', m.el).forEach(r => {
+      r.oninput = () => { Audio2.setVol(r.dataset.v, +r.value); r.nextElementSibling.textContent = r.value; };
+      r.onchange = () => { if (r.dataset.v === 'voice') Voice.say(R.pick(Engines.PRAISE)); else if (r.dataset.v === 'sfx') Audio2.sfx('right', .5); };
+    });
+    m.el.querySelector('.gfx').onclick = e => { const b = e.target.closest('[data-q]'); if (!b) return; p.settings.gfx = b.dataset.q; save(); Core.Perf.refresh(); $$('.gfx .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); UI.toast('画质已切换，下一个 3D 场景完全生效'); };
     m.el.querySelector('.ra').onclick = e => { const b = e.target.closest('[data-r]'); if (!b) return; p.settings.readAloud = b.dataset.r === 'auto' ? null : b.dataset.r === 'on'; save(); $$('.ra .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); };
     m.el.querySelector('.fre').onclick = e => { const b = e.target.closest('[data-f]'); if (!b) return; p.settings.free = b.dataset.f === '1'; save(); $$('.fre .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); UI.toast(p.settings.free ? '已放开全部限制' : '已恢复正常限制'); if (curScreen === 'hub') hub(); else if (curScreen === 'play') playground(); };
-    m.el.querySelector('.lim').onclick = e => { const b = e.target.closest('[data-l]'); if (!b) return; p.settings.limit = +b.dataset.l; save(); $$('.lim .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); };
+    const ptLine = () => { const al = allowMin(p); m.el.querySelector('.pt-line').textContent = '今日已玩 ' + Math.round(usedMin(p)) + ' 分钟' + (al < Infinity ? '（今天可玩 ' + Math.round(al) + ' 分钟）' : '') + ' · 累计 ' + p.totalGames + ' 局'; };
+    ptLine();
+    m.el.querySelector('.lim').onclick = e => { const b = e.target.closest('[data-l]'); if (!b) return; p.settings.limit = +b.dataset.l; save(); $$('.lim .chip', m.el).forEach(x => x.classList.toggle('on', x === b)); ptLine(); };
+    m.el.querySelector('.pt-add').onclick = () => { extendTime(p, 15); ptLine(); UI.toast('今天多玩 15 分钟'); };
+    m.el.querySelector('.pt-zero').onclick = () => { resetTime(p); ptLine(); UI.toast('今日游戏时长已清零'); };
     m.el.querySelector('.ex').onclick = () => { const blob = new Blob([Store.exportJSON()], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'star-island-save-' + today() + '.json'; a.click(); };
     m.el.querySelector('.im').onclick = () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.json'; i.onchange = () => { const r = new FileReader(); r.onload = () => { try { Store.importJSON(r.result); UI.toast('导入成功'); m.close(); titleScreen(); } catch (e) { UI.toast('文件不正确'); } }; r.readAsText(i.files[0]); }; i.click(); };
     m.el.querySelector('.del').onclick = async () => { if (await UI.confirm('确定删除「' + esc(p.name) + '」的全部进度吗？')) { delete Store.db.profiles[p.id]; Store.db.cur = null; save(); m.close(); titleScreen(); } };
   }
-  // 时长提醒
-  let lastTick = Date.now(), lastRest = 0, sessionStart = Date.now();
+  /* ================= 每日时长：到时间锁住，家长验证后解锁 ================= */
+  // playtime：{ date, ms 今日已玩, extra 家长加的分钟, off 今天不再限制 }，跨天自动重置
+  const ptToday = p => { if (p.playtime.date !== today()) p.playtime = { date: today(), ms: 0 }; return p.playtime; };
+  const usedMin = p => ptToday(p).ms / 60000;
+  const allowMin = p => { const t = ptToday(p); return !p.settings.limit || t.off ? Infinity : p.settings.limit + (t.extra || 0); };
+  const timeUp = p => !!p && !Core.free() && usedMin(p) >= allowMin(p);
+  function extendTime(p, n) { const t = ptToday(p); t.extra = Math.max(0, usedMin(p) - (p.settings.limit || 0)) + n; t.off = false; save(); }
+  function resetTime(p) { p.playtime = { date: today(), ms: 0 }; save(); }
+  let lockM = null, warned = '';
+  // 锁住期间拦下键盘，免得在遮罩后面继续操作游戏（遮罩里的输入框照常能打字）
+  addEventListener('keydown', e => { if (lockM && !(e.target.closest && e.target.closest('.tlock-bg'))) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  function checkLock() {
+    const p = P(); if (lockM || !p || curScreen === 'title' || !timeUp(p)) return;
+    Voice.stop(); Audio2.stopMusic(); if (document.pointerLockElement) document.exitPointerLock();
+    if (Core.Perf) Core.Perf.pause(true);
+    document.body.classList.add('locked');
+    lockM = UI.modal('<div class="tlock"><div class="rest-ico">' + E('🌙') + E('😴') + '</div><div class="mtitle">今天的游戏时间到啦</div><p>今天已经玩了 <b>' + Math.round(usedMin(p)) + '</b> 分钟，让眼睛休息一下，明天再来玩吧！</p><button class="btn ghost tl-parent">' + E('🔐') + ' 家长解锁</button></div>', { noClose: true, cls: 'tlock-m', instant: true });
+    lockM.el.parentElement.classList.add('tlock-bg');
+    Voice.say('今天已经玩了 ' + Math.round(usedMin(p)) + ' 分钟啦，休息一下，保护眼睛吧！');
+    lockM.el.querySelector('.tl-parent').onclick = () => parentVerify(unlockPanel);
+  }
+  function unlock(msg) {
+    if (!lockM) return; lockM.close(); lockM = null; document.body.classList.remove('locked');
+    if (Core.Perf) Core.Perf.pause(false);
+    if (Audio2.musicName) Audio2.playMusic(Audio2.musicName);
+    sessionStart = Date.now(); if (msg) UI.toast(msg);
+  }
+  // 家长验证（叠在锁屏上面）
+  function parentVerify(onOk) {
+    const pq = parentQuiz();
+    const m = UI.modal('<div class="mtitle">' + E('🔐') + ' 家长验证</div><p class="c">' + pq.html + '</p><input class="inp c" inputmode="numeric" maxlength="3"><button class="btn big go">确定</button>', { cls: 'tlock-m' });
+    m.el.parentElement.classList.add('tlock-bg', 'tlock-top');
+    const inp = m.el.querySelector('.inp'); setTimeout(() => inp.focus(), 60);
+    const go = () => { if (pq.ok(inp.value)) { m.close(); onOk(); } else shakeInp(inp); };
+    m.el.querySelector('.go').onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
+  }
+  function unlockPanel() {
+    const p = P();
+    const m = UI.modal('<div class="mtitle">' + E('⏰') + ' 延长今天的游戏时间</div><p class="c dim">今日已玩 ' + Math.round(usedMin(p)) + ' 分钟 · 每日上限 ' + (p.settings.limit || '不限') + ' 分钟</p><div class="r-btns tl-opts"><button class="btn" data-n="15">再玩 15 分钟</button><button class="btn" data-n="30">再玩 30 分钟</button><button class="btn ghost" data-n="0">今日时长清零</button><button class="btn ghost" data-n="-1">今天不限时</button></div><button class="btn ghost sm tl-set">' + E('⚙️') + ' 家长中心（修改每日时长）</button>', { cls: 'tlock-m' });
+    m.el.parentElement.classList.add('tlock-bg', 'tlock-top');
+    m.el.querySelector('.tl-opts').onclick = e => {
+      const b = e.target.closest('[data-n]'); if (!b) return; const n = +b.dataset.n; m.close();
+      if (n > 0) { extendTime(p, n); unlock('可以再玩 ' + n + ' 分钟啦'); }
+      else if (n === 0) { resetTime(p); unlock('今日游戏时长已清零'); }
+      else { ptToday(p).off = true; save(); unlock('今天不再限制游戏时长'); }
+    };
+    m.el.querySelector('.tl-set').onclick = () => { m.close(); unlock(); parentPanel(); };
+  }
+  // 每 15 秒记一次时长；锁住时不计时
+  let lastTick = Date.now(), sessionStart = Date.now();
   setInterval(() => {
     const p = P(); const now = Date.now(); const dt = now - lastTick; lastTick = now;
-    if (!p || document.hidden || curScreen === 'title') return;
-    if (p.playtime.date !== today()) p.playtime = { date: today(), ms: 0 };
-    if (Core.free()) { p.playtime.ms += Math.min(dt, 20000); save(); sessionStart = now; return; }
-    if (p.playtime.date !== today()) p.playtime = { date: today(), ms: 0 };
-    p.playtime.ms += Math.min(dt, 20000); save();
-    if (p.settings.limit && p.playtime.ms > p.settings.limit * 60000 && now - lastRest > 10 * 60000) { lastRest = now; restModal('今天已经玩了 ' + p.settings.limit + ' 分钟啦，休息一下，保护眼睛吧！'); }
+    if (!p || document.hidden || curScreen === 'title' || lockM) return;
+    ptToday(p).ms += Math.min(dt, 20000); save();
+    if (Core.free()) { sessionStart = now; return; }
+    if (timeUp(p)) return checkLock();
+    const left = allowMin(p) - usedMin(p), wk = today() + '|' + allowMin(p);
+    if (left <= 5 && warned !== wk) { warned = wk; UI.toast(E('⏰') + ' 今天还能玩 ' + Math.max(1, Math.round(left)) + ' 分钟哦', 3000); }
     else if (now - sessionStart > 20 * 60000) { sessionStart = now; restModal('已经连续玩了20分钟，看看远处的绿色植物，眨眨眼睛吧～'); }
   }, 15000);
   function restModal(t) { const m = UI.modal('<div class="c"><div class="rest-ico">' + E('👀') + E('🌳') + '</div><div class="mtitle">休息一下</div><p>' + t + '</p><button class="btn big go">我知道啦</button></div>', { noClose: true }); Voice.say(t); m.el.querySelector('.go').onclick = () => m.close(); }
@@ -871,7 +903,30 @@
   }
   function piano(box) {
     const notes = [['C', 'do', 261.6, '🔴'], ['D', 're', 293.7, '🟠'], ['E', 'mi', 329.6, '🟡'], ['F', 'fa', 349.2, '🟢'], ['G', 'sol', 392, '🔵'], ['A', 'la', 440, '🟣'], ['B', 'si', 493.9, '🩷'], ['C2', 'do', 523.3, '🔴']];
-    const songs = { '小星星': [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0], '两只老虎': [0, 1, 2, 0, 0, 1, 2, 0, 2, 3, 4, 2, 3, 4], '欢乐颂': [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1] };
+    // 只有 C4–C5 八个白键：旋律超出 do–do' 的（如王老先生、月光下）整体移到 F 调，低音 sol 落在 C 键上
+    const songs = {
+      '小星星': [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0], '两只老虎': [0, 1, 2, 0, 0, 1, 2, 0, 2, 3, 4, 2, 3, 4], '欢乐颂': [2, 2, 3, 4, 4, 3, 2, 1, 0, 0, 1, 2, 2, 1, 1],
+      '热面包': [2, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 1, 0],
+      '玛丽的小羊': [2, 1, 0, 1, 2, 2, 2, 1, 1, 1, 2, 4, 4, 2, 1, 0, 1, 2, 2, 2, 2, 1, 1, 2, 1, 0],
+      '小鸭子': [0, 1, 2, 3, 4, 4, 5, 5, 5, 5, 4, 5, 5, 5, 5, 4, 3, 3, 3, 3, 2, 2, 1, 1, 1, 1, 0],
+      '粉刷匠': [4, 2, 4, 2, 4, 2, 0, 1, 3, 2, 1, 4, 4, 2, 4, 2, 4, 2, 0, 1, 3, 2, 1, 0, 1, 1, 3, 3, 2, 0, 4, 1, 3, 2, 1, 4, 4, 2, 4, 2, 4, 2, 0, 1, 3, 2, 1, 0],
+      '划小船': [0, 0, 0, 1, 2, 2, 1, 2, 3, 4, 7, 7, 7, 4, 4, 4, 2, 2, 2, 0, 0, 0, 4, 3, 2, 1, 0],
+      '伦敦桥': [4, 5, 4, 3, 2, 3, 4, 1, 2, 3, 2, 3, 4, 4, 5, 4, 3, 2, 3, 4, 1, 4, 2, 0],
+      '小蜜蜂': [4, 2, 2, 3, 1, 1, 0, 1, 2, 3, 4, 4, 4, 4, 2, 2, 3, 1, 1, 0, 2, 4, 4, 2, 1, 1, 1, 1, 1, 2, 3, 2, 2, 2, 2, 2, 3, 4, 4, 2, 2, 3, 1, 1, 0, 2, 4, 4, 0],
+      '三只熊': [0, 0, 0, 0, 0, 2, 4, 4, 2, 0, 4, 4, 2, 4, 4, 2, 0, 0, 0, 4, 4, 2, 0, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 4, 4, 2, 0, 4, 4, 4, 5, 4, 7, 4, 7, 4, 2, 1, 0],
+      '月光下': [3, 3, 3, 4, 5, 4, 3, 5, 4, 4, 3, 3, 3, 3, 4, 5, 4, 3, 5, 4, 4, 3, 4, 4, 4, 4, 1, 1, 4, 3, 2, 1, 0, 3, 3, 3, 4, 5, 4, 3, 5, 4, 4, 3],
+      '这个老人': [4, 2, 4, 4, 2, 4, 5, 4, 3, 2, 1, 2, 3, 2, 3, 4, 0, 0, 0, 0, 0, 1, 2, 3, 4, 4, 1, 1, 3, 2, 1, 0],
+      '圣者进行曲': [0, 2, 3, 4, 0, 2, 3, 4, 0, 2, 3, 4, 2, 0, 2, 1, 2, 2, 1, 0, 0, 2, 4, 4, 3, 2, 3, 4, 2, 0, 1, 0],
+      '念故乡': [2, 4, 4, 2, 1, 0, 1, 2, 4, 2, 1, 2, 4, 4, 2, 1, 0, 1, 2, 1, 0, 0],
+      '小毛驴': [0, 0, 0, 2, 4, 4, 4, 4, 5, 5, 5, 7, 4, 3, 3, 3, 5, 2, 2, 2, 2, 1, 1, 1, 1, 4, 0, 0, 0, 2, 4, 4, 4, 4, 5, 5, 5, 7, 4, 3, 3, 3, 5, 2, 2, 2, 2, 1, 1, 1, 2, 0],
+      '王老先生': [3, 3, 3, 0, 1, 1, 0, 5, 5, 4, 4, 3, 0, 3, 3, 3, 0, 1, 1, 0, 5, 5, 4, 4, 3, 0, 0, 3, 3, 3, 0, 0, 3, 3, 3, 3, 3, 3, 0, 1, 1, 0, 5, 5, 4, 4, 3],
+      '洋娃娃跳舞': [0, 1, 2, 3, 4, 4, 4, 3, 2, 3, 3, 3, 2, 1, 0, 2, 4, 0, 1, 2, 3, 4, 4, 4, 3, 2, 3, 3, 3, 2, 1, 0, 2, 0],
+      '铃儿响叮当': [2, 2, 2, 2, 2, 2, 2, 4, 0, 1, 2, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 2, 1, 4, 2, 2, 2, 2, 2, 2, 2, 4, 0, 1, 2, 3, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 3, 1, 0],
+      '噢苏珊娜': [0, 1, 2, 4, 4, 5, 4, 2, 0, 1, 2, 2, 1, 0, 1, 3, 3, 5, 5, 5, 4, 4, 2, 0, 1, 0, 1, 2, 4, 4, 5, 4, 2, 0, 1, 2, 2, 1, 1, 0],
+      '茉莉花': [2, 2, 4, 5, 7, 7, 5, 4, 4, 5, 4, 2, 2, 4, 5, 7, 7, 5, 4, 4, 5, 4, 4, 4, 4, 2, 4, 5, 5, 4, 2, 1, 2, 4, 2, 1, 0, 0, 1, 0],
+      '康康舞': [0, 1, 3, 2, 1, 4, 4, 4, 5, 2, 3, 1, 1, 1, 3, 2, 1, 0, 7, 6, 5, 4, 3, 2, 1, 0, 1, 3, 2, 1, 4, 4, 4, 5, 2, 3, 1, 3, 2, 1, 0, 4, 1, 2, 0],
+      '摇篮曲': [2, 2, 4, 2, 2, 4, 2, 4, 7, 6, 5, 5, 4, 1, 2, 3, 1, 1, 2, 3, 1, 3, 6, 5, 4, 6, 7, 0, 0, 7, 5, 3, 4, 2, 0, 3, 4, 5, 4, 0, 0, 7, 5, 3, 4, 2, 0, 3, 2, 1, 0],
+    };
     box.innerHTML = '<div class="songs">跟着弹：' + Object.keys(songs).map(s => '<button class="chip" data-s="' + s + '">' + s + '</button>').join('') + '<button class="chip" data-s="">自由弹</button></div><div class="guide"></div><div class="keys">' + notes.map((n, i) => '<button class="key" data-i="' + i + '" style="--kc:' + ['#ff5d73', '#ff9f43', '#ffd23f', '#7bd389', '#3ec1d3', '#a78bfa', '#ff8fc7', '#ff5d73'][i] + '"><span class="kn">' + n[1] + '</span><span class="kl latin">' + n[0][0] + '</span></button>').join('') + '</div>';
     let song = null, pos = 0;
     const guide = box.querySelector('.guide');

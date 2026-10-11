@@ -23,10 +23,8 @@
   W.init = function (el, o) {
     T = window.THREE; container = el; opts = o; onPick = o.onPick;
     const P = PALETTE[o.theme] || PALETTE.kid;
-    renderer = new T.WebGLRenderer({ antialias: !P.pixelate, alpha: false, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(P.pixelate || Math.min(devicePixelRatio, 2));
+    renderer = Perf.renderer({ antialias: !P.pixelate, alpha: false, powerPreference: 'high-performance' }, { dpr: P.pixelate || 2, fixed: !!P.pixelate, shadows: true });
     if (P.pixelate) renderer.domElement.style.imageRendering = 'pixelated';
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = P.exposure;
     renderer.outputColorSpace = T.SRGBColorSpace;
     el.appendChild(renderer.domElement);
@@ -47,7 +45,7 @@
     scene.add(new T.HemisphereLight(P.hemiSky, P.hemiGround, P.hemiI));
     const sun = new T.DirectionalLight(P.sun, P.sunI);
     sun.position.set(o.theme === 'pro' ? -40 : 30, o.theme === 'pro' ? 22 : 50, 25); sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 160 }); sun.shadow.bias = -0.0005;
+    sun.shadow.mapSize.setScalar(Perf.shadowSize(2048)); Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 160 }); sun.shadow.bias = -0.0005;
     scene.add(sun);
     if (o.theme === 'pro') { const rim = new T.DirectionalLight(0x8fa8ff, .6); rim.position.set(40, 20, -30); scene.add(rim); }
 
@@ -73,7 +71,7 @@
   }
 
   function buildOcean(P) {
-    const g = new T.PlaneGeometry(420, 420, 110, 110); g.rotateX(-Math.PI / 2);
+    const seg = Perf.tier() ? 110 : 56, g = new T.PlaneGeometry(420, 420, seg, seg); g.rotateX(-Math.PI / 2); // 省电档海面网格减半（每帧都要重算顶点和法线）
     oceanBase = g.attributes.position.array.slice();
     const m = new T.MeshStandardMaterial({ color: P.sea, roughness: .25, metalness: .15, flatShading: true, transparent: true, opacity: .96 });
     ocean = new T.Mesh(g, m); ocean.receiveShadow = true; ocean.position.y = -0.4; scene.add(ocean);

@@ -1,22 +1,14 @@
-/* 资源加载进度角标：仅在 Wi-Fi（或有线）网络下显示，流量网络不显示。
-   统计当前页正在加载的全部资源（脚本、样式、图片、音频、字体、CSS 背景图），全部完成后自动消失。
+/* 资源加载统计：记下当前页正在加载的全部资源（脚本、样式、图片、音频、字体、fetch、CSS 背景图），
+   供切场景 / 弹窗判断"是不是都加载完了"（进度统一显示在屏幕中间的加载层，见 preload.js 的 Loader）。
    必须放在 <head> 里、所有样式和脚本之前加载。 */
 (function () {
   'use strict';
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  // type 可读时：只有 wifi / ethernet 才显示；读不到（iOS、桌面 Safari/Firefox 等）时按非流量处理，开启省流量则不显示
-  function allowed() {
-    if (!conn) return true;
-    if (conn.type) return conn.type === 'wifi' || conn.type === 'ethernet';
-    return !conn.saveData;
-  }
-
-  const SHOW_DELAY = 400, HIDE_DELAY = 600, ITEM_TIMEOUT = 30000;
+  const ITEM_TIMEOUT = 30000;
   const pending = new Map(); // key -> timeout id
   const doneUrls = new Set(); // 已加载完成的 URL（来自 Resource Timing 或加载事件）
-  let total = 0, done = 0, el = null, bar = null, txt = null, visible = false, showT = 0, hideT = 0;
+  let total = 0, done = 0;
 
-  // 首屏：window.load 之前一直视为加载中，避免脚本之间的空档让角标闪烁（不计入数量）
+  // 首屏：window.load 之前一直视为加载中，避免脚本之间的空档被当成加载完了（不计入数量）
   let pageHold = document.readyState !== 'complete';
   if (pageHold) addEventListener('load', () => { pageHold = false; update(); });
   const busy = () => pending.size > 0 || pageHold;
@@ -125,53 +117,7 @@
     } catch (e) {}
   }
 
-  /* ---------- 角标 UI ---------- */
-  function build() {
-    const st = document.createElement('style');
-    st.textContent =
-      '#netload{position:fixed;left:calc(10px + env(safe-area-inset-left));bottom:calc(10px + env(safe-area-inset-bottom));z-index:2147483000;' +
-      'display:flex;align-items:center;gap:8px;padding:6px 12px 6px 10px;border-radius:999px;background:rgba(255,255,255,.92);color:#3b4a6b;' +
-      'font:600 12px/1.2 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;box-shadow:0 2px 10px rgba(0,40,90,.18);' +
-      'pointer-events:none;opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s}' +
-      '#netload.on{opacity:1;transform:none}' +
-      '#netload .nl-track{width:72px;height:6px;border-radius:3px;background:#e3ecf7;overflow:hidden}' +
-      '#netload .nl-bar{height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#5ec8ff,#7be495);transition:width .25s}' +
-      '#netload .nl-txt{font-variant-numeric:tabular-nums;white-space:nowrap}';
-    document.head.appendChild(st);
-    el = document.createElement('div'); el.id = 'netload'; el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = '<div class="nl-track"><div class="nl-bar"></div></div><span class="nl-txt"></span>';
-    bar = el.firstChild.firstChild; txt = el.lastChild;
-  }
-  function render() {
-    const all = Math.max(1, total), ok = Math.min(all, done), on = busy();
-    const pct = on ? Math.min(99, Math.floor(ok / all * 100)) : 100;
-    bar.style.width = pct + '%';
-    txt.textContent = on ? '资源加载中 ' + pct + '%  ' + ok + '/' + all : '加载完成';
-  }
-  function show() {
-    showT = 0;
-    if (!allowed() || !busy() || !document.body) return;
-    if (!el) build();
-    if (!el.isConnected) document.body.appendChild(el);
-    render();
-    void el.offsetWidth; el.classList.add('on'); visible = true;
-  }
-  function reset() { total = pending.size; done = 0; }
-  function update() {
-    if (busy()) {
-      if (hideT) { clearTimeout(hideT); hideT = 0; }
-      if (visible) render();
-      else if (!showT) showT = setTimeout(show, SHOW_DELAY);
-      return;
-    }
-    if (showT) { clearTimeout(showT); showT = 0; }
-    if (!visible) { reset(); return; }
-    render();
-    if (!hideT) hideT = setTimeout(() => {
-      hideT = 0; if (busy()) return;
-      el.classList.remove('on'); visible = false; reset();
-    }, HIDE_DELAY);
-  }
+  function update() { if (!busy()) { total = pending.size; done = 0; } }
 
   // 供场景切换使用：等到没有任何资源在加载、并且安静 quiet 毫秒（连锁加载的下一步也算进来）
   window.NetLoad = {
@@ -183,8 +129,4 @@
     },
   };
 
-  if (conn && conn.addEventListener) conn.addEventListener('change', () => {
-    if (!allowed() && el) { el.classList.remove('on'); visible = false; }
-    else if (allowed() && busy() && !visible && !showT) showT = setTimeout(show, SHOW_DELAY);
-  });
 })();

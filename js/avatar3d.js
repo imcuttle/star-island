@@ -608,8 +608,7 @@
   A.stage = function (el, opts) {
     T = window.THREE; opts = opts || {};
     const style = opts.style || A.styleOf(Core.theme()), st = STYLE[style] || STYLE.kid;
-    const rd = new T.WebGLRenderer({ antialias: !st.pixel, alpha: true });
-    rd.setPixelRatio(st.pixel ? 1 / st.pixel : Math.min(devicePixelRatio, 2)); rd.outputColorSpace = T.SRGBColorSpace;
+    const rd = Perf.renderer({ antialias: !st.pixel, alpha: true }, { dpr: st.pixel ? 1 / st.pixel : 2, fixed: !!st.pixel }); rd.outputColorSpace = T.SRGBColorSpace;
     if (st.pixel) rd.domElement.style.imageRendering = 'pixelated';
     rd.domElement.className = 'av-stage'; el.appendChild(rd.domElement);
     const sc = new T.Scene(); A.lightsFor(sc, style);

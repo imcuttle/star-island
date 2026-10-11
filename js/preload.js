@@ -40,13 +40,13 @@
     zone: { m: ['core', 'app'] },
     game: { m: ['core', 'app'].concat(ENGINE_MODS) },
     battle: { m: ['core', 'app', 'engines'] },
-    shop: { m: ['core', 'app'], music: 'quaint' },
+    shop: { m: ['core', 'app'], music: 'town' },
     gacha: { m: ['core', 'app'] },
     album: { m: ['core', 'app'] },
     play: { m: ['core', 'app', 'playland'] },
     home: { m: ['core', 'engines', 'home', 'bond', 'sketch'], music: 'quaint' },
-    explore: { m: ['core', 'engines', 'explore', 'explore3d', 'battle5', 'bond', 'sketch'], music: 'quaint' },
-    battle5: { m: ['core', 'engines', 'battle5', 'bond'], music: 'smore' },
+    explore: { m: ['core', 'engines', 'explore', 'explore3d', 'battle5', 'bond', 'sketch'], music: 'town' },
+    battle5: { m: ['core', 'engines', 'battle5', 'bond'], music: 'battle' },
   };
 
   /* ---------- 收集资源清单 ---------- */
@@ -113,7 +113,7 @@
   function forGame(g, data) {
     const z = CATALOG.zone(g.zone), eng = Engines.ENGINES[g.eng];
     const tasks = (g.eng === 'kart' || g.eng === 'splat' || g.eng === 'roll') && window.Models ? [() => window.Models.ready()] : [];
-    const B = base(z && z.music);
+    const B = base(CATALOG.gameMusic(g));
     addMods(B, SCENES.game.m);
     if (ENG_IMG[g.eng]) ENG_IMG[g.eng]().forEach(u => B.add(u, 'img'));
     addText(B, strings(data, [g.icon || '', g.name, g.name + '。' + ((window.App && App.HELP && App.HELP[g.eng]) || '')], 0).concat(eng ? [eng.toString()] : []));
@@ -168,51 +168,90 @@
     return job;
   }
 
-  /* ---------- 加载界面：很快就加载完的不弹出 ---------- */
-  function box(title) {
-    const m = UI.modal('<div class="preload-box"><div class="mtitle">' + Core.E('⭐') + ' ' + title + '</div><div class="pl-track"><i></i></div><div class="pl-txt"></div><div class="pl-btns" hidden><button class="btn ghost pl-skip">先玩着</button><button class="btn pl-retry">重试</button></div></div>', { noClose: true, cls: 'preload' });
-    return { m, bar: m.el.querySelector('.pl-track i'), txt: m.el.querySelector('.pl-txt'), btns: m.el.querySelector('.pl-btns'), skip: m.el.querySelector('.pl-skip'), retry: m.el.querySelector('.pl-retry') };
-  }
+  /* ---------- 统一的加载层：屏幕正中间一个，切场景、开局、打开弹窗都用它（很快就加载完的不弹出） ----------
+     hold() 拿一个"占用"，全部释放后才收起；切场景时上一步还没释放、下一步已经接上，进度框不会闪 */
+  const Loader = (() => {
+    let el = null, bar, txt, ttl, btns, showT = 0, hideT = 0, shown = 0, seq = 0;
+    const holds = new Map();
+    function build() {
+      el = Core.h('div', 'loader', '<div class="ld-box"><div class="ld-ico">' + Core.E('⭐') + '</div><div class="ld-title"></div><div class="pl-track"><i></i></div><div class="pl-txt"></div><div class="pl-btns" hidden><button class="btn ghost pl-skip">先玩着</button><button class="btn pl-retry">重试</button></div></div>');
+      bar = el.querySelector('.pl-track i'); txt = el.querySelector('.pl-txt'); ttl = el.querySelector('.ld-title'); btns = el.querySelector('.pl-btns');
+    }
+    function top() { let t = null; holds.forEach(v => { t = v; }); return t; }
+    function paint() {
+      const t = top(); if (!t || !el) return;
+      ttl.textContent = t.title; bar.style.width = Math.round((t.pct == null ? .05 : t.pct) * 100) + '%'; txt.textContent = t.text || '';
+      btns.hidden = !t.err; if (t.err) { el.querySelector('.pl-skip').onclick = t.err.skip; el.querySelector('.pl-retry').onclick = t.err.retry; }
+    }
+    function open() { showT = 0; if (!holds.size) return; if (!el) build(); if (!el.isConnected) document.body.appendChild(el); paint(); void el.offsetWidth; el.classList.add('in'); shown = performance.now(); }
+    function close() { hideT = 0; if (holds.size || !el) return; el.classList.remove('in'); setTimeout(() => { if (!holds.size && el && !el.classList.contains('in')) el.remove(); }, 250); }
+    function hold(title, delay) {
+      const id = ++seq, t = { title, pct: null, text: '', err: null };
+      holds.set(id, t); clearTimeout(hideT); hideT = 0;
+      if (el && el.classList.contains('in')) paint();
+      else if (!showT) showT = setTimeout(open, delay == null ? 200 : delay);
+      return {
+        set(pct, text) { t.pct = pct; t.text = text; t.err = null; if (top() === t) paint(); },
+        fail(text, retry, skip) { t.text = text; t.err = { retry, skip }; clearTimeout(showT); open(); },
+        done() {
+          if (!holds.delete(id)) return; if (holds.size) return paint();
+          clearTimeout(showT); showT = 0;
+          if (el && el.classList.contains('in')) hideT = setTimeout(close, Math.max(120, 350 - (performance.now() - shown)));
+        },
+      };
+    }
+    return { hold, busy: () => holds.size > 0 };
+  })();
+
   // 等 job 全部加载完再执行 go；加载期间停留在当前画面，盖一层进度框
   function gate(job, go) {
-    let started = false, ui = null, showT = 0;
+    let started = false;
+    const L = Loader.hold('准备中…');
     const start = () => {
-      if (started) return; started = true;
-      clearTimeout(showT); job.onprogress = null;
-      if (ui) ui.m.close();
-      go();
+      if (started) return; started = true; job.onprogress = null;
+      try { go(); } finally { L.done(); } // 先 go（下一步会接着占用加载层）再释放，进度框不闪
     };
-    const upd = j => { if (!ui) return; const pct = j.total ? Math.floor(j.done / j.total * 100) : 100; ui.bar.style.width = pct + '%'; ui.txt.textContent = '正在加载素材 ' + pct + '%（' + j.done + '/' + j.total + '）'; };
-    const open = () => { if (started || ui) return; ui = box('准备中…'); job.onprogress = upd; upd(job); };
+    const upd = j => { const pct = j.total ? j.done / j.total : 1; L.set(pct, '正在加载素材 ' + Math.floor(pct * 100) + '%（' + j.done + '/' + j.total + '）'); };
     const finish = j => {
       if (!j.failed || !httpish) return start(); // 本地打开（file://）时缺的文件就是本来没有，不拦
       // 真的下载失败了（多半是断网）：让家长选择重试或先玩
-      open(); ui.txt.textContent = '有 ' + j.failed + ' 个素材没下载成功，请检查网络后重试'; ui.btns.hidden = false;
-      ui.skip.onclick = start;
-      ui.retry.onclick = () => { ui.btns.hidden = true; job = j.retry(); job.onprogress = upd; upd(job); job.promise.then(finish); };
+      L.fail('有 ' + j.failed + ' 个素材没下载成功，请检查网络后重试', () => { job = j.retry(); job.onprogress = upd; upd(job); job.promise.then(finish); }, start);
     };
     if (job.finished) return finish(job);
-    showT = setTimeout(open, 200);
+    job.onprogress = upd; upd(job);
     job.promise.then(finish);
   }
 
   // 场景已经搭好（还没显示）：等它自己发起的所有加载（图片、模型脚本、贴图、3D 立绘）都完成
   function settle(el) {
     return new Promise(res => {
-      let ui = null, maxP = 1, done = false, timer = 0;
-      const showT = setTimeout(() => {
-        if (done) return; ui = box('场景准备中…');
-        timer = setInterval(() => { const n = window.NetLoad ? NetLoad.pending() : 0; maxP = Math.max(maxP, n); ui.bar.style.width = Math.round((1 - n / maxP) * 95) + '%'; ui.txt.textContent = n ? '还有 ' + n + ' 个素材' : '马上就好'; }, 120);
-      }, 250);
+      const L = Loader.hold('场景准备中…');
+      let maxP = 1;
+      const timer = setInterval(() => { const n = (window.NetLoad ? NetLoad.pending() : 0) + (window.Avatar3D && Avatar3D._busy ? Avatar3D._busy() : 0); maxP = Math.max(maxP, n); L.set(.4 + .6 * (1 - n / maxP), n ? '还有 ' + n + ' 个素材' : '马上就好'); }, 120);
       const idle = () => Promise.all([window.NetLoad ? NetLoad.idle(200) : null, window.Avatar3D && Avatar3D.idle ? Avatar3D.idle() : null]);
       // 两轮：模型解析完可能又发起贴图请求
-      idle().then(idle).then(() => {
-        done = true; clearTimeout(showT); clearInterval(timer);
-        if (ui) ui.m.close();
-        res(el);
-      });
+      idle().then(idle).then(() => { clearInterval(timer); res(el); L.done(); });
     });
   }
 
-  window.Preload = { forGame, forBattle, forScene, gate, settle };
+  // 弹窗：等弹窗里的图片、3D 立绘 / 模型都就绪才显示（只等它自己的内容，不等后台其他下载）
+  //       带 data-nowait 的图片（比如选角色的预览动图）不等，弹窗先出来，图片下载好再淡入
+  function settleBox(box) {
+    return new Promise(res => {
+      const t0 = performance.now(); let L = null, maxN = 1;
+      const fin = () => { if (L) L.done(); res(); };
+      const left = () => Array.from(box.querySelectorAll('img')).filter(i => !i.dataset.nowait && ((i.getAttribute('src') && !i.complete) || i.classList.contains('av-wait'))).length + (window.Avatar3D && Avatar3D._busy ? Avatar3D._busy() : 0);
+      const check = () => {
+        const n = box.isConnected ? left() : 0;
+        if (!n || performance.now() - t0 > 90000) return fin(); // 兜底：最多等 90 秒
+        maxN = Math.max(maxN, n);
+        if (!L) L = Loader.hold('准备中…', 150);
+        L.set(1 - n / maxN, '还有 ' + n + ' 个素材');
+        setTimeout(check, 60);
+      };
+      requestAnimationFrame(check); // 等 hydrate / 立绘任务排上队再检查
+    });
+  }
+
+  window.Preload = { forGame, forBattle, forScene, gate, settle, settleBox, Loader };
 })();

@@ -89,6 +89,3 @@
 .pl-track i { display: block; height: 100%; width: 0; border-radius: 14px; background: linear-gradient(90deg, #5ec8ff, #7be495); transition: width .25s; }
 .pl-txt { font-size: 14px; opacity: .8; font-variant-numeric: tabular-nums; }
 .pl-skip { margin-top: 12px; } .pl-skip[hidden] { display: none; }
-/* 大游戏里宠物放在顶部栏 */
-.gpet.in-top { position: relative; left: auto; bottom: auto; margin-left: auto; height: 50px; display: flex; align-items: center; }
-.gpet.in-top .pet.mini { width: 50px; height: 50px; }

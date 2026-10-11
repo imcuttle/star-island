@@ -60,8 +60,7 @@
         '<div class="p3-dialog"><div class="pd-name"></div><div class="pd-text"></div></div>';
       el.querySelector('.back').onclick = () => Home.open();
       run(el, id, S, p, resume || {});
-    });
-    Audio2.playMusic(S.music || 'quaint');
+    }, { music: S.music || 'town' });
   }
 
   /* ---------- 共用：对话框 ---------- */
@@ -155,11 +154,11 @@
       layers = { k, sky: Sketch.paintLayer(id, 'sky', Math.round(VW * k * 1.15), Hc), far: Sketch.paintLayer(id, 'far', Math.round((L * .4 + VW) * k), Hc), mid: Sketch.paintLayer(id, 'mid', Math.round(L * k), Hc), fore: Sketch.paintLayer(id, 'fore', Math.round((L * 1.25 + VW) * k), Hc) };
       drawMarks();
     };
-    const rd = A && A.supported() ? new T.WebGLRenderer({ antialias: true, alpha: true }) : null;
+    const rd = A && A.supported() ? Perf.renderer({ antialias: true, alpha: true }, { dpr: 2 }) : null;
     let sc, cam, hero = null, pet = null, petEmo = null; const actors = [];
     const U = () => VH / 7.2;
     if (rd) {
-      rd.setPixelRatio(Math.min(devicePixelRatio, 2)); rd.outputColorSpace = T.SRGBColorSpace; box.appendChild(rd.domElement);
+      rd.outputColorSpace = T.SRGBColorSpace; box.appendChild(rd.domElement);
       sc = new T.Scene(); A.lightsFor(sc, 'p5', id === 'tower' ? .8 : 1);
       cam = new T.OrthographicCamera(-1, 1, 1, -1, -50, 50);
       const heroKey = App.heroModel ? App.heroModel(p) : null;

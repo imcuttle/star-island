@@ -70,7 +70,6 @@
       if (this.combo >= 3 && this.combo % 3 === 0) { this.comboFx(); }
       const say = q && q.ex ? q.ex : (Math.random() < .55 ? R.pick(PRAISE) : null);
       if (say) await Voice.say(say); else await sleep(450);
-      if (window.Pet) Pet.cheer(true);
     }
     async bad(el, q, correctEl) {
       this.wrong++; this.total++; this.combo = 0; Audio2.sfx('wrong', .5);
@@ -83,7 +82,6 @@
         this.renderHearts();
         const hp = this.root.querySelector('.ghearts'); hp.classList.remove('hit'); void hp.offsetWidth; hp.classList.add('hit');
       }
-      if (window.Pet) Pet.cheer(false);
       if (q && q.ex) await Voice.say('正确答案：' + q.ex); else await Voice.say(R.pick(OOPS));
       await sleep(300);
       if (this.hearts <= 0) { this.end(true); return false; }

@@ -287,22 +287,20 @@
         '<div class="p3-dialog"><div class="pd-name"></div><div class="pd-text"></div></div>';
       el.querySelector('.back').onclick = () => Home.open();
       run(el, id, S, p, th, resume);
-    });
-    Audio2.playMusic(S.music || 'quaint');
+    }, { music: S.music || 'town' });
   };
 
   function run(el, id, S, p, th, resume) {
     const A = Avatar3D, gl = el.querySelector('.x3-gl'), labs = el.querySelector('.x3-labs');
     let dead = false;
     document.body.classList.add('kgame');
-    const rd = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    rd.setPixelRatio(Math.min(devicePixelRatio, 1.5)); rd.outputColorSpace = T.SRGBColorSpace; rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;
+    const rd = Perf.renderer({ antialias: true, powerPreference: 'high-performance' }, { dpr: 1.5, shadows: true }); rd.outputColorSpace = T.SRGBColorSpace;
     rd.toneMapping = T.NoToneMapping;
     gl.appendChild(rd.domElement);
     const sc = new T.Scene(); sc.fog = new T.Fog(th.fog[0], th.fog[1], th.fog[2]);
     const cam = new T.PerspectiveCamera(46, 1, .1, 400);
     sc.add(new T.HemisphereLight(th.hemi[0], th.hemi[1], th.hemi[2] * .8));
-    const sun = new T.DirectionalLight(th.sun[0], th.sun[1]); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 }); sun.shadow.bias = -.0006; sc.add(sun); sc.add(sun.target);
+    const sun = new T.DirectionalLight(th.sun[0], th.sun[1]); sun.castShadow = true; sun.shadow.mapSize.setScalar(Perf.shadowSize(1024)); Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 120 }); sun.shadow.bias = -.0006; sc.add(sun); sc.add(sun.target);
     const rim = new T.DirectionalLight(th.palace || id === 'city' ? 0xff2a4a : 0x8ab0ff, .7); rim.position.set(0, 10, -30); sc.add(rim);
     const W = buildScene(sc, id, S, p, th);
     const LX = W.LX;
@@ -370,7 +368,7 @@
       petGoto: s => { lead.goal = W.spotPos[s.id].clone(); }, petFollow: () => { lead.goal = null; },
       sit: on => { if (hero) hero.play(on ? 'sit' : 'idle'); team.forEach(m => m.av && m.av.play(on && m.av.has('sit') ? 'sit' : 'idle')); },
       burst: (s, emo, n) => { const q = toScreen(W.spotPos[s.id].clone().setY(1.2)); UI.burst(q.x, q.y, emo, n || 7); const L = W.pick.find(g => g.userData && g.userData.spark && g.children && g.position.x === W.spotPos[s.id].x); if (L && L.userData.spark) L.userData.spark.visible = false; },
-      snap: () => { render(); const c = document.createElement('canvas'); c.width = rd.domElement.width; c.height = rd.domElement.height; c.getContext('2d').drawImage(rd.domElement, 0, 0); return c; },
+      snap: () => { render(true); const c = document.createElement('canvas'); c.width = rd.domElement.width; c.height = rd.domElement.height; c.getContext('2d').drawImage(rd.domElement, 0, 0); return c; },
     });
     W.pick.forEach(g => { if (g.userData.spark && g.children[0] && g.children[0].userData.spot && p.hm.spots[id + ':' + g.children[0].userData.spot]) g.userData.spark.visible = false; });
 
@@ -596,7 +594,7 @@
     fit(); addEventListener('resize', fit);
     const mapCv = el.querySelector('.x3-map'), mx = mapCv.getContext('2d');
     let lastAct = null, mapT = 0, labT = 0;
-    function render() { A.setViewport(rd.domElement.width, rd.domElement.height); A.outlineU.uOl.value = 2.4 / Math.max(1, rd.domElement.height) * Math.min(devicePixelRatio, 1.75); rd.render(sc, cam); }
+    function render(now) { A.setViewport(rd.domElement.width, rd.domElement.height); A.outlineU.uOl.value = 2.4 / Math.max(1, rd.domElement.height) * Math.min(devicePixelRatio, 1.75); (now ? rd.renderNow : rd.render)(sc, cam); }
     function loop() {
       if (dead) return; if (!el.isConnected) return dispose(); raf = requestAnimationFrame(loop);
       const dt = Math.min(.1, clock.getDelta()), t = clock.elapsedTime; X._frames = (X._frames || 0) + 1;

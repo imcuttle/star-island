@@ -32,8 +32,7 @@
   window.Models = Models;
 
   function renderer3d(wrap) {
-    const T = THREE, rd = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    rd.setPixelRatio(Math.min(devicePixelRatio, 1.75)); rd.shadowMap.enabled = true; rd.shadowMap.type = T.PCFSoftShadowMap;
+    const T = THREE, rd = Perf.renderer({ antialias: true, powerPreference: 'high-performance' }, { dpr: 1.75, shadows: true });
     rd.toneMapping = T.ACESFilmicToneMapping; rd.outputColorSpace = T.SRGBColorSpace; rd.domElement.className = 'ar-cv';
     wrap.insertBefore(rd.domElement, wrap.firstChild);
     const cam = new T.PerspectiveCamera(62, 1, .3, 900);
@@ -48,7 +47,7 @@
   const mesh = (g, m, x, y, z) => { const me = new THREE.Mesh(g, m); me.position.set(x || 0, y || 0, z || 0); me.castShadow = true; me.receiveShadow = true; return me; };
   function lights(scene, T, sky) {
     scene.add(new T.HemisphereLight(0xdff2ff, 0x6a8a4a, 1.3));
-    const s = new T.DirectionalLight(0xffffff, 2.2); s.position.set(60, 90, 40); s.castShadow = true; s.shadow.mapSize.set(2048, 2048);
+    const s = new T.DirectionalLight(0xffffff, 2.2); s.position.set(60, 90, 40); s.castShadow = true; s.shadow.mapSize.setScalar(Perf.shadowSize(2048));
     Object.assign(s.shadow.camera, { left: -120, right: 120, top: 120, bottom: -120, far: 300 }); scene.add(s); scene.add(s.target);
     scene.background = new T.Color(sky); scene.fog = new T.Fog(sky, 120, 380);
     return s;

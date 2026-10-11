@@ -13,9 +13,14 @@
     "shots": "node tools/shots.mjs",
     "voice": "node tools/collect_voice.cjs && python3 tools/gen_voice.py /tmp/voice_all.json && sh tools/trim_voice.sh",
     "emoji": "sh tools/fetch_emoji.sh",
+    "sfx": "node tools/gen_sfx.mjs",
     "deploy:init": "npx -y wrangler@4 pages project create star-island --production-branch=main",
     "fonts": "python3 tools/fonts.py",
+    "hero-cards": "node tools/hero_cards.mjs",
     "test:quick": "node tools/test.mjs 2 quiz,memory,catch,sort,order,whack,platform,kart",
     "test:platform": "node tools/test_platform.cjs 20"
+  },
+  "devDependencies": {
+    "@breezystack/lamejs": "^1.2.7"
   }
 }

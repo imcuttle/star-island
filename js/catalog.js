@@ -9,7 +9,7 @@
     { id: 'art', name: '艺术剧院', sub: '色彩·音乐·名画·戏曲', icon: '🎭', color: '#e8508a', music: 'magic', boss: { name: '乱涂鸦怪', e: '👻', sprite: 'bee_a', hp: 6 } },
     { id: 'geo', name: '地理航线', sub: '国旗·大洲·中国·地形', icon: '🧭', color: '#c0843c', music: 'summer', boss: { name: '迷路龙卷风', e: '🌪️', sprite: 'fly_a', hp: 7 } },
     { id: 'cul', name: '国学文化馆', sub: '生肖·节日·故事·三字经', icon: '🏮', color: '#c8382e', music: 'quaint', boss: { name: '年兽', e: '🦁', sprite: 'frog_idle', hp: 7 } },
-    { id: 'logic', name: '逻辑实验室', sub: '规律·编程·数独·推理', icon: '🧩', color: '#14b8a6', music: 'smore', boss: { name: '混乱魔方', e: '🎲', sprite: 'saw_a', hp: 7 } },
+    { id: 'logic', name: '逻辑实验室', sub: '规律·编程·数独·推理', icon: '🧩', color: '#14b8a6', music: 'cave', boss: { name: '混乱魔方', e: '🎲', sprite: 'saw_a', hp: 7 } },
     { id: 'job', name: '职业体验城', sub: '职业·工具·场所·财商', icon: '🏗️', color: '#84a516', music: 'frog', boss: { name: '懒懒怪', e: '🦥', sprite: 'mouse_walk_a', hp: 6 } },
   ];
   const L = {
@@ -104,5 +104,7 @@
   };
   const GAMES = [];
   ZONES.forEach(z => L[z.id].forEach((r, i) => GAMES.push({ id: z.id + '-' + r[0] + '-' + r[1], zone: z.id, gen: r[0], eng: r[1], name: r[2], icon: r[3], g0: r[4], g1: r[5], idx: i })));
-  window.CATALOG = { ZONES, GAMES, zone: id => ZONES.find(z => z.id === id) };
+  // 关卡的背景音乐：卡丁车用公路音乐，其他大游戏用快节奏音乐，普通玩法跟随区域
+  const gameMusic = g => g.eng === 'kart' ? 'drive' : window.Engines && Engines.BIG && Engines.BIG.has(g.eng) ? 'race' : (ZONES.find(z => z.id === g.zone) || {}).music;
+  window.CATALOG = { ZONES, GAMES, zone: id => ZONES.find(z => z.id === id), gameMusic };
 })();
