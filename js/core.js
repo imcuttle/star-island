@@ -80,7 +80,7 @@
   // 各首背景音乐的响度不一样（最多差 7 dB），按实测响度拉平到同一水平
   const MUSIC_GAIN = { happy: .75, frog: 1, magic: .54, quaint: .74, smore: .55, summer: .46, battle: .63, town: .87, cave: .74, race: .93, drive: .48 };
   // 齿轮设置里小朋友自己可调的三路音量（0-100），默认：音乐偏小、朗读偏大
-  const VOL_DEF = { music: 50, voice: 90, sfx: 70 };
+  const VOL_DEF = { music: 35, voice: 90, sfx: 70 };
   const vol = k => { const p = Store.p, v = p && p.settings.vol && p.settings.vol[k]; return (v == null ? VOL_DEF[k] : v) / 100; };
   const Audio2 = {
     cache: {}, music: null, musicName: null, unlocked: false, ducked: false,
