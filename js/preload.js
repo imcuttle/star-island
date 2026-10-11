@@ -32,21 +32,23 @@
   };
   const SFX_ALL = ['bong', 'bump', 'click', 'close', 'coin', 'drop', 'fail', 'gem', 'hatch', 'hit', 'hurt', 'jump', 'levelup', 'magic', 'open', 'pluck', 'poof', 'pop', 'question', 'right', 'select', 'star', 'throw', 'tick', 'victory', 'whoosh', 'win', 'wrong'];
   const COMMON_SAY = ['还不对哦，再看看', '到达终点啦！', '完美通关！', '很棒！再努力一点就三星啦', '通关啦！继续加油', '别灰心，再试一次一定行！', '要退出这一局吗？', '升级啦！你现在是100级'];
-  // 各场景的代码模块（静态清单见 js/scene-assets.js）和背景音乐
+  // 各场景的代码模块（静态清单见 js/scene-assets.js）
+  // 背景音乐不拦场景：淡入时 Audio2.playMusic 才下载，下好就开始放（本来也要等小朋友点一下屏幕才能出声）
   const ENGINE_MODS = ['engines', 'engines2', 'engines3', 'arcade', 'arcade3d', 'platform'];
   const SCENES = {
-    title: { m: ['core', 'app'], music: 'happy' },
-    hub: { m: ['core', 'app', 'world3d'], music: 'happy' },
+    // 封面只等自己用得到的；主地图的素材在封面显示出来以后后台先下着（见 app.js titleScreen），小朋友起名字、挑角色的工夫就下完了
+    title: { m: ['core'], lite: true },
+    hub: { m: ['core', 'app', 'world3d'] },
     zone: { m: ['core', 'app'] },
     game: { m: ['core', 'app'].concat(ENGINE_MODS) },
     battle: { m: ['core', 'app', 'engines'] },
-    shop: { m: ['core', 'app'], music: 'town' },
+    shop: { m: ['core', 'app'] },
     gacha: { m: ['core', 'app'] },
     album: { m: ['core', 'app'] },
     play: { m: ['core', 'app', 'playland'] },
-    home: { m: ['core', 'engines', 'home', 'bond', 'sketch'], music: 'quaint' },
-    explore: { m: ['core', 'engines', 'explore', 'explore3d', 'battle5', 'bond', 'sketch'], music: 'town' },
-    battle5: { m: ['core', 'engines', 'battle5', 'bond'], music: 'battle' },
+    home: { m: ['core', 'engines', 'home', 'bond', 'sketch'] },
+    explore: { m: ['core', 'engines', 'explore', 'explore3d', 'battle5', 'bond', 'sketch'] },
+    battle5: { m: ['core', 'engines', 'battle5', 'bond'] },
   };
 
   /* ---------- 收集资源清单 ---------- */
@@ -66,7 +68,7 @@
   }
   const VOICE_URL = f => 'assets/voice/' + f + '.mp3';
 
-  function base(music) {
+  function base(lite) {
     const p = Store.p, s = p ? p.settings : {}, list = [];
     const add = (url, kind) => url && list.push({ url, kind });
     const H = p && window.App && App.HEROES.find(x => x.id === p.hero);
@@ -75,9 +77,9 @@
     const K = p && p.pet && window.App && App.PETS.find(x => x.id === p.pet.kind);
     if (K) add(K.img && theme() === 'kid' ? 'assets/img/' + K.img : emojiUrl(K.e), 'img');
     if (s.sfx !== false) SFX_ALL.forEach(n => add('assets/sfx/' + n + '.mp3', 'sfx'));
-    if (music && s.music !== false) add('assets/music/' + music + '.mp3', 'audio');
     const B = { list, add, voiceOn: s.voice !== false };
-    if (B.voiceOn) { addSay(B, COMMON_SAY.concat((window.Engines && Engines.PRAISE) || [])); for (let i = 0; i <= 100; i++) addVoiceKey(B, '#' + i); }
+    // 小游戏里通用的台词、夸奖和 0-100 的读音（封面用不到）
+    if (B.voiceOn && !lite) { addSay(B, COMMON_SAY.concat((window.Engines && Engines.PRAISE) || [])); for (let i = 0; i <= 100; i++) addVoiceKey(B, '#' + i); }
     return B;
   }
   function addVoiceKey(B, key, lang) { const f = window.VOICE && window.VOICE[(lang || 'zh') + '|' + key]; if (f) B.add(VOICE_URL(f), 'audio'); }
@@ -105,7 +107,7 @@
 
   function forScene(name, extra) {
     extra = extra || {};
-    const sc = SCENES[name] || { m: ['core'] }, B = base(extra.music || sc.music);
+    const sc = SCENES[name] || { m: ['core'] }, B = base(sc.lite);
     addMods(B, sc.m);
     if (extra.texts) addText(B, extra.texts);
     return run(B.list, extra.tasks || []);
@@ -113,14 +115,16 @@
   function forGame(g, data) {
     const z = CATALOG.zone(g.zone), eng = Engines.ENGINES[g.eng];
     const tasks = (g.eng === 'kart' || g.eng === 'splat' || g.eng === 'roll') && window.Models ? [() => window.Models.ready()] : [];
-    const B = base(CATALOG.gameMusic(g));
+    // 2D 小游戏里的主角精灵（从 3D 模型渲染，主地图上是后台渲染的，这里要等它好）
+    if (window.App && App.prepHeroShots && Store.p) tasks.push(() => App.prepHeroShots(Store.p));
+    const B = base();
     addMods(B, SCENES.game.m);
     if (ENG_IMG[g.eng]) ENG_IMG[g.eng]().forEach(u => B.add(u, 'img'));
     addText(B, strings(data, [g.icon || '', g.name, g.name + '。' + ((window.App && App.HELP && App.HELP[g.eng]) || '')], 0).concat(eng ? [eng.toString()] : []));
     return run(B.list, tasks);
   }
-  function forBattle(z, sprite, music, qs) {
-    const B = base(music);
+  function forBattle(z, sprite, qs) {
+    const B = base();
     addMods(B, SCENES.battle.m);
     if (theme() === 'kid') { B.add(img('enemy/' + sprite), 'img'); B.add(img('bg/background_color_mushrooms'), 'img'); }
     addText(B, strings(qs || [], [z.boss.e, z.boss.name + '出现了！答对题目就能攻击它！', '糊涂龙出现了！用你的智慧打败它！', '差一点点！再练练，一定能打败它！'], 0));

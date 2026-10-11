@@ -75,3 +75,51 @@ body.locked #fx { z-index: 9000; }
   .levels { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; padding-top: 2px; }
   .lvcard { padding: 8px 6px 6px; } .lv-ico { width: 50px; height: 50px; } .lv-ico .emo { width: 38px; height: 38px; } .lv-name { font-size: 15px; }
 }
+/* ---- 手机横屏的小游戏：上下太矮，题目面板挪到左边一栏，右边整块高度留给玩法区；
+        方向键 / 操作按钮放在题目下面，左手拇指够得着 ---- */
+@media (orientation: landscape) and (max-height: 540px) {
+  .s-game .stage:has(> .qpanel) { --qw: min(31vw, 290px); padding-left: calc(var(--qw) + 24px); }
+  .s-game .stage > .qpanel { position: absolute; left: 12px; top: 4px; bottom: 8px; width: var(--qw); height: fit-content; max-height: calc(100% - 12px); margin: auto 0; overflow-y: auto; z-index: 3; padding: 10px 12px; }
+  .s-game .stage:has(> .dpad, > .tf-ctl) > .qpanel { margin-top: 0; max-height: calc(100% - 120px); }
+  .s-game .stage > .qpanel .qtext { font-size: 16px; gap: 6px; }
+  .s-game .stage > .qpanel .qbig { font-size: 34px; } .s-game .stage > .qpanel .qbig.latin { font-size: 30px; }
+  .s-game .stage > .qpanel .qvis .qemo { width: 60px; height: 60px; }
+  .s-game .stage > .dpad, .s-game .stage > .tf-ctl { position: absolute; left: calc(12px + var(--qw) / 2); bottom: 8px; transform: translateX(-50%); z-index: 3; }
+  .tf-ctl { flex-direction: column; gap: 8px; } .tf-ctl .btn { font-size: 17px; padding: 9px 18px; }
+  .field, .sea, .pond, .rn-field, .fp-field, .ar-field, .sl-field, .bo-field, .rh-field, .fd-field, .tf-field { min-height: 150px; }
+  .holes { gap: 6px 16px; } .hole { height: min(150px, 42vh); } .mspr .spr, .mspr .emo { width: 66px; height: 66px; } .hole.up .mole { bottom: 26px; } .hole .dirt { height: 32px; }
+  .mgrid { grid-template-columns: repeat(6, 1fr); gap: 8px; } .mgrid.n8 { grid-template-columns: repeat(4, 1fr); } .mgrid.n10 { grid-template-columns: repeat(5, 1fr); } .mgrid.n16 { grid-template-columns: repeat(8, 1fr); }
+  .ccol { gap: 6px; } .cnode { min-height: 40px; padding: 4px 8px; }
+  .chests { flex-wrap: nowrap; gap: 6px; } .chest { zoom: .7; }
+  .clockwrap { flex-wrap: nowrap; gap: 16px; } .bigclock .clock-svg { width: min(300px, 70vh); height: min(300px, 70vh); }
+  .clockctl { padding: 10px 12px; gap: 8px; } .cc-time { font-size: 30px; }
+  .cs-cust > .emo { width: 56px; height: 56px; } .cs-item { flex-direction: row; gap: 8px; padding: 6px 12px; } .cs-item .emo { width: 40px; height: 40px; }
+  .cs-tray { min-height: 72px; padding: 8px; } .cs-in { min-height: 44px; } .cs-wallet { gap: 6px; }
+  .money.note { width: 78px; height: 42px; font-size: 15px; } .money.coin { width: 50px; height: 50px; } .money.c1 { width: 40px; height: 40px; } .money.c5 { width: 45px; height: 45px; }
+  .hg-sky { transform: scale(.6); transform-origin: 50% 0; margin-bottom: -92px; }
+  .hg-word span { font-size: 30px; min-width: 32px; } .hg-kb button { height: 38px; font-size: 19px; }
+  .sm-pad { width: min(26vw, 150px, 30vh); font-size: 24px; border-radius: 22px; }
+  .sy-grid { width: min(100%, 58vh * var(--c) / var(--r), 460px); } .sy-sw { width: 40px; height: 40px; }
+  .vs-head { gap: 12px; } .vs-head span { padding: 2px 10px 2px 2px; } .vs-head .hero, .vs-head .spr, .vs-head .emo { width: 30px; height: 30px; } .vs-head i { font-size: 17px; }
+  .tt-wrap, .bd-wrap { gap: 12px; } .bd-board { width: min(50vw, 116vh); } .tt-board { width: min(40vw, 62vh); }
+  .tt-side .qpanel, .bd-side .qpanel, .du-box .qpanel { padding: 6px 10px; } .tt-side .qvis .qemo, .bd-side .qvis .qemo, .du-box .qvis .qemo { width: 44px; height: 44px; }
+  .tt-side .qbig, .bd-side .qbig { font-size: 26px; }
+  .tt-side .choices, .bd-side .choices, .du-box .choices { gap: 8px; } .tt-side .choices.compact .choice, .bd-side .choices.compact .choice, .du-box .choices.compact .choice { min-height: 54px; padding: 4px 8px; }
+  .bl-scale { width: calc(100% - 140px); } .bl-load { width: 130px; }
+  .ck-top { padding-bottom: 8px; } .ck-cust .emo { width: 54px; height: 54px; } .ck-bubble { padding: 6px 12px; font-size: 16px; } .ck-bubble::before { top: 16px; }
+  .ck-o b { font-size: 26px; } .ck-o .emo { width: 34px; height: 34px; } .ck-txt { font-size: 18px; } .ck-pat { left: 66px; }
+  .ck-plate { min-height: 90px; padding: 8px 40px; } .ck-food .emo { width: 34px; height: 34px; }
+  .ck-shelf { padding: 6px 10px; gap: 8px; } .ck-item { width: 54px; height: 54px; } .ck-item .emo { width: 40px; height: 40px; }
+  .du-top { gap: 14px; } .du-p { flex-direction: row; gap: 8px; padding: 4px 14px 4px 4px; min-width: 0; } .du-p .spr, .du-p .emo, .du-p .hero { width: 36px; height: 36px; } .du-score { font-size: 24px; } .du-vs { font-size: 22px; }
+}
+/* 窄屏手机：天平的两个托盘、水管两头的水龙头和小花不能伸出屏幕 */
+@media (max-width: 560px) {
+  .bl-scale { width: calc(100% - 120px); } .bl-load { width: 110px; }
+  .pp-wrap { padding: 0 38px; } .pp-grid { width: min(100vw - 110px, 58vh); } .pp-src .emo, .pp-sink .emo { width: 36px; height: 36px; }
+}
+/* 竖屏（平板竖放也算）：棋盘在上、题目在下，不挤成左右两栏 */
+@media (orientation: portrait) {
+  .tt-wrap, .bd-wrap { flex-direction: column; gap: 12px; }
+  .tt-side, .bd-side { flex: none; width: 100%; }
+  .bd-board { width: min(96vw, 760px); } .tt-board { width: min(70vw, 38vh, 440px); }
+}

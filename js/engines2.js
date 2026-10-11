@@ -21,6 +21,8 @@
     if (H && H.img) return '<img class="spr" src="assets/img/' + H.img + '_' + (pose || 'front') + '.png" draggable="false">';
     return E(H && H.e ? H.e : '🧒');
   }
+  // 名牌 / 计分卡里的头像用半身像（和 HUD 头像一样）：全身立绘缩到 40px 只剩一根细条
+  function heroBust() { const p = Core.Store.p; return p && App.heroHTML ? App.heroHTML(p, 'front', 'xs') : heroTok(); }
   function petTok() {
     const p = Core.Store.p;
     if (p && p.pet && window.App) { const K = App.PETS.find(x => x.id === p.pet.kind); if (K) return E(K.e); }
@@ -60,11 +62,13 @@
   function snake(S, qs) {
     return runQs(S, qs, q => new Promise(res => {
       const { st, P } = scene(S, q, 'snake');
-      const C = 12, RW = 7;
-      const field = h('div', 'sn-field'); field.style.setProperty('--c', C); field.style.setProperty('--r', RW); st.appendChild(field);
+      // 竖屏时场地转成竖的，小蛇从上往下爬
+      const tall = st.clientHeight > st.clientWidth * 1.15, T = p => tall ? [p[1], p[0]] : p;
+      const C = tall ? 7 : 12, RW = tall ? 12 : 7;
+      const box = h('div', 'sn-box'), field = h('div', 'sn-field'); field.style.setProperty('--c', C); field.style.setProperty('--r', RW); box.appendChild(field); st.appendChild(box);
       st.appendChild(dpad(d => turn(d)));
-      let body = [[3, 3], [2, 3], [1, 3]], dir = [1, 0], next = [1, 0], done = false, timer = null, started = false;
-      const cand = []; for (let x = 1; x < C; x++) for (let y = 0; y < RW; y++) if (!(y === 3 && x < 7)) cand.push([x, y]);
+      let body = [[3, 3], [2, 3], [1, 3]].map(T), dir = T([1, 0]), next = dir, done = false, timer = null, started = false;
+      const cand = []; for (let x = 1; x < C; x++) for (let y = 0; y < RW; y++) { const [u, v] = T([x, y]); if (!(v === 3 && u < 7)) cand.push([x, y]); }
       const picked = [];
       R.shuffle(cand).forEach(p => { if (picked.length < q.ch.length && picked.every(o => Math.abs(o[0] - p[0]) + Math.abs(o[1] - p[1]) > 2)) picked.push(p); });
       const put = (el, p) => { el.style.left = (p[0] / C * 100) + '%'; el.style.top = (p[1] / RW * 100) + '%'; };
@@ -116,7 +120,9 @@
     return runQs(S, qs, q => new Promise(res => {
       trimCh(q, 4);
       const { st, P } = scene(S, q, 'maze');
-      const W = S.grade <= 1 ? 7 : 9, H = S.grade <= 1 ? 5 : 6;
+      // 竖屏时把迷宫转成竖的，格子能大一圈
+      const A = S.grade <= 1 ? 7 : 9, B = S.grade <= 1 ? 5 : 6, tall = st.clientHeight > st.clientWidth * 1.15;
+      const W = tall ? B : A, H = tall ? A : B;
       const D = { n: [0, -1, 's'], s: [0, 1, 'n'], e: [1, 0, 'w'], w: [-1, 0, 'e'] };
       const start = [Math.floor(W / 2), Math.floor(H / 2)], CORN = [[0, 0], [W - 1, 0], [0, H - 1], [W - 1, H - 1]].slice(0, Math.max(q.ch.length, 2));
       const gen = () => {
@@ -136,7 +142,7 @@
       let wall = gen(); for (let i = 0; i < 40 && !CORN.every(c => reach(wall, c)); i++) wall = gen();
       // 极少数仍不满足：把角落格子的多余开口封上，只留一个通向里面的口
       if (!CORN.every(c => reach(wall, c))) CORN.forEach(([x, y]) => { const c = wall[y][x], inner = x === 0 ? 'e' : 'w', other = y === 0 ? 's' : 'n'; c[inner] = 0; wall[y][x + (inner === 'e' ? 1 : -1)][inner === 'e' ? 'w' : 'e'] = 0; c[other] = 1; wall[y + (other === 's' ? 1 : -1)][x][other === 's' ? 'n' : 's'] = 1; });
-      const field = h('div', 'mz-field'); field.style.setProperty('--c', W); field.style.setProperty('--r', H); st.appendChild(field);
+      const box = h('div', 'mz-box'), field = h('div', 'mz-field'); field.style.setProperty('--c', W); field.style.setProperty('--r', H); box.appendChild(field); st.appendChild(box);
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = wall[y][x]; field.appendChild(h('div', 'mz-cell' + (c.n ? ' wn' : '') + (c.s ? ' ws' : '') + (c.e ? ' we' : '') + (c.w ? ' ww' : ''))); }
       const put = (el, p) => { el.style.left = ((p[0] + .5) / W * 100) + '%'; el.style.top = ((p[1] + .5) / H * 100) + '%'; };
       const corners = R.shuffle(CORN.slice());
@@ -346,7 +352,7 @@
   async function tictac(S, qs) {
     const st = S.stage; st.className = 'stage scene-tictac'; st.innerHTML = '';
     const ME = '⭐', AI = '🌙';
-    const head = h('div', 'vs-head', '<span>' + heroTok() + '<b>你 ' + E(ME) + '</b></span><i class="latin">VS</i><span>' + E('🤖') + '<b>小智 ' + E(AI) + '</b></span>');
+    const head = h('div', 'vs-head', '<span>' + heroBust() + '<b>你 ' + E(ME) + '</b></span><i class="latin">VS</i><span>' + E('🤖') + '<b>小智 ' + E(AI) + '</b></span>');
     const wrap = h('div', 'tt-wrap'), board = h('div', 'tt-board'), side = h('div', 'tt-side');
     for (let i = 0; i < 9; i++) board.appendChild(h('button', 'tt-cell'));
     wrap.appendChild(board); wrap.appendChild(side); st.appendChild(head); st.appendChild(wrap); hydrate(st);
@@ -447,7 +453,7 @@
   async function board(S, qs) {
     const st = S.stage; st.className = 'stage scene-board'; st.innerHTML = '';
     const N = 24, COLS = 8, ROWS = 3, JUMP = { 3: 10, 8: 14, 15: 20 }, SLIDE = { 12: 5, 18: 11, 22: 16 };
-    const head = h('div', 'vs-head', '<span>' + heroTok() + '<b>你</b></span><i class="latin">VS</i><span>' + E('🤖') + '<b>小智</b></span>');
+    const head = h('div', 'vs-head', '<span>' + heroBust() + '<b>你</b></span><i class="latin">VS</i><span>' + E('🤖') + '<b>小智</b></span>');
     const bd = h('div', 'bd-board');
     for (let i = 0; i < N; i++) {
       const row = Math.floor(i / COLS), col = row % 2 ? COLS - 1 - (i % COLS) : i % COLS;
@@ -781,7 +787,7 @@
   async function duel(S, qs) {
     const st = S.stage; st.className = 'stage scene-duel'; st.innerHTML = '';
     const GOAL = S.grade <= 1 ? 4 : 5;
-    const top = h('div', 'du-top', '<div class="du-p me">' + heroTok() + '<b>你</b><div class="du-score latin">0</div></div><div class="du-vs latin">VS</div><div class="du-p ai">' + E('🤖') + '<b>智多星</b><div class="du-score latin">0</div></div>');
+    const top = h('div', 'du-top', '<div class="du-p me">' + heroBust() + '<b>你</b><div class="du-score latin">0</div></div><div class="du-vs latin">VS</div><div class="du-p ai">' + E('🤖') + '<b>智多星</b><div class="du-score latin">0</div></div>');
     const bar = h('div', 'du-bar', '<i></i><span>智多星正在思考…</span>'), box = h('div', 'du-box');
     st.appendChild(top); st.appendChild(bar); st.appendChild(box); hydrate(st);
     let me = 0, ai = 0;
@@ -877,15 +883,15 @@
       const spots = R.shuffle([[.5, .7], [.64, .4], [.78, .66], [.9, .32], [.66, .14]]).slice(0, n);
       const targets = q.ch.map((c, i) => { const el = h('div', 'sl-target', '<div class="sl-crate">' + lbl(c, q) + '</div>'); el.dataset.ok = c.ok ? 1 : 0; el.style.left = (spots[i][0] * 100) + '%'; el.style.top = (spots[i][1] * 100) + '%'; field.appendChild(el); return { c, el }; });
       const t0 = tip(field, '按住小球往后拉，松手发射！');
-      const G = 1200, K = 13, MAXP = 120, BR = 22;
-      let W = 0, H = 0, A = { x: 0, y: 0 }, bx = 0, by = 0, vx = 0, vy = 0, state = 'rest', done = false, last = performance.now();
-      const measure = () => { W = field.clientWidth; H = field.clientHeight; A = { x: W * .15, y: H * .6 }; };
+      const G = 1200, K = 13, MAXP = 120;
+      let BR = 22, W = 0, H = 0, A = { x: 0, y: 0 }, bx = 0, by = 0, vx = 0, vy = 0, state = 'rest', done = false, last = performance.now();
+      const measure = () => { W = field.clientWidth; H = field.clientHeight; A = { x: W * .15, y: H * .6 }; BR = ball.offsetWidth / 2 || 22; };
       const show = () => { ball.style.transform = 'translate(' + (bx - BR) + 'px,' + (by - BR) + 'px)'; };
       const rest = () => { measure(); state = 'rest'; bx = A.x; by = A.y; show(); svg.innerHTML = ''; };
       const preview = (pvx, pvy) => {
         const dots = S.grade <= 1 ? 16 : S.grade === 2 ? 9 : 5; let s = '';
         for (let i = 1; i <= dots; i++) { const t = i * .06, x = A.x + pvx * t, y = A.y + pvy * t + .5 * G * t * t; s += '<circle cx="' + x + '" cy="' + y + '" r="' + (5 - i * 3 / dots) + '"/>'; }
-        s += '<line x1="' + (W * .15 - 16) + '" y1="' + (A.y - 8) + '" x2="' + bx + '" y2="' + by + '"/><line x1="' + (W * .15 + 16) + '" y1="' + (A.y - 8) + '" x2="' + bx + '" y2="' + by + '"/>';
+        s += '<line x1="' + (A.x - BR * .73) + '" y1="' + (A.y - BR * .36) + '" x2="' + bx + '" y2="' + by + '"/><line x1="' + (A.x + BR * .73) + '" y1="' + (A.y - BR * .36) + '" x2="' + bx + '" y2="' + by + '"/>';
         svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.innerHTML = s;
       };
       const launch = (pvx, pvy) => { if (done) return; t0.remove(); vx = pvx; vy = pvy; bx = A.x; by = A.y; state = 'fly'; svg.innerHTML = ''; Audio2.sfx('throw', .5); };

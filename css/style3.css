@@ -212,7 +212,7 @@ body[data-theme="clay"] .lb::after { border-top-color: #fff4ec; }
 .sy-grid { position: relative; display: grid; grid-template-columns: repeat(var(--c), 1fr); grid-template-rows: repeat(var(--r), 1fr); gap: 3px; width: min(88vw, 58vh, 460px); aspect-ratio: var(--c) / var(--r); padding: 6px; background: var(--line); border-radius: 12px; box-shadow: var(--shadow); flex: none; touch-action: none; }
 .sy-grid.v::after { content: ''; position: absolute; left: 50%; top: -10px; bottom: -10px; border-left: 4px dashed var(--accent); transform: translateX(-2px); pointer-events: none; }
 .sy-grid.h::after { content: ''; position: absolute; top: 50%; left: -10px; right: -10px; border-top: 4px dashed var(--accent); transform: translateY(-2px); pointer-events: none; }
-.sy-cell { background: var(--panel); border-radius: 4px; } .sy-cell.src { background-color: color-mix(in srgb, var(--panel) 80%, #c8cfdc); } .sy-cell.dst { cursor: pointer; }
+.sy-cell { background: var(--panel); border-radius: 4px; width: auto; height: auto; } .sy-cell.src { background-color: color-mix(in srgb, var(--panel) 80%, #c8cfdc); } .sy-cell.dst { cursor: pointer; }
 .sy-cell.wrongc { animation: wrongc 1.2s; } @keyframes wrongc { 0%, 50% { box-shadow: inset 0 0 0 4px var(--bad); } }
 .sy-grid.ok { box-shadow: 0 0 0 5px var(--good), var(--shadow); animation: goodpop .6s; }
 .sy-pal { display: flex; gap: 12px; flex: none; } .sy-sw { width: 48px; height: 48px; border-radius: 50%; box-shadow: var(--shadow); } .sy-sw.on { box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--ink); }
@@ -231,21 +231,22 @@ body[data-theme="clay"] .lb::after { border-top-color: #fff4ec; }
 .eq-card:hover { transform: translateY(-4px) rotate(-2deg); } .eq-card.used { opacity: .2; pointer-events: none; transform: scale(.9); }
 
 /* 过马路 */
-.tf-field { position: relative; width: 100%; max-width: 820px; flex: 1; min-height: 300px; display: grid; grid-template-rows: repeat(var(--rows), 1fr); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+/* 场地是尺寸容器：--row 是一条车道的高度，人物、车、红绿灯都跟着车道缩放 */
+.tf-field { --row: calc(100cqh / var(--rows)); container-type: size; position: relative; width: 100%; max-width: 820px; flex: 1; min-height: 240px; display: grid; grid-template-rows: repeat(var(--rows), 1fr); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
 .tf-walk { background: repeating-linear-gradient(90deg, #d8d2c4 0 46px, #cbc4b4 46px 50px); display: flex; align-items: center; justify-content: center; }
-.tf-goal { display: flex; align-items: center; gap: 6px; font-size: 18px; } .tf-goal .emo { width: 44px; height: 44px; }
+.tf-goal { display: flex; align-items: center; gap: 6px; font-size: clamp(15px, var(--row) * .22, 26px); } .tf-goal .emo { width: calc(var(--row) * .55); height: calc(var(--row) * .55); }
 .tf-lane { position: relative; background: #4a4f5c; border-top: 3px dashed rgba(255,255,255,.4); overflow: hidden; }
 .tf-zebra { position: absolute; left: 42%; right: 42%; top: 0; bottom: 0; background: repeating-linear-gradient(90deg, #fff 0 12px, transparent 12px 24px); opacity: .9; }
-.tf-car { position: absolute; top: 50%; transform: translate(-50%, -50%) scaleX(-1); z-index: 2; } .tf-car.rev { transform: translate(-50%, -50%); } .tf-car .emo { width: 54px; height: 54px; }
-.tf-kid { position: absolute; left: 50%; transform: translateX(-50%); transition: bottom .25s; z-index: 4; } .tf-kid .spr, .tf-kid .emo { width: 58px; height: 58px; object-fit: contain; display: block; }
+.tf-car { position: absolute; top: 50%; transform: translate(-50%, -50%) scaleX(-1); z-index: 2; } .tf-car.rev { transform: translate(-50%, -50%); } .tf-car .emo { width: min(var(--row) * .8, 14cqw); height: min(var(--row) * .8, 14cqw); }
+.tf-kid { position: absolute; left: 50%; transform: translateX(-50%); transition: bottom .25s; z-index: 4; } .tf-kid .spr { width: calc(var(--row) * 1.08); height: calc(var(--row) * 1.08); object-fit: contain; display: block; } .tf-kid .emo { width: calc(var(--row) * .75); height: calc(var(--row) * .75); display: block; }
 .tf-kid.looking .spr, .tf-kid.looking .emo { animation: look 1s; } @keyframes look { 25% { transform: rotate(-18deg) translateX(-6px); } 75% { transform: rotate(18deg) translateX(6px); } }
-.tf-light { position: absolute; right: 12px; bottom: 8px; width: 64px; background: #222; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; align-items: center; z-index: 5; box-shadow: 0 4px 10px rgba(0,0,0,.4); }
-.tf-light > div { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #333; } .tf-light .emo { width: 30px; height: 30px; opacity: .2; }
+.tf-light { --lt: clamp(24px, var(--row) * .42, 56px); position: absolute; right: 12px; bottom: 8px; background: #222; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 4px; align-items: center; z-index: 5; box-shadow: 0 4px 10px rgba(0,0,0,.4); }
+.tf-light > div { width: var(--lt); height: var(--lt); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #333; } .tf-light .emo { width: calc(var(--lt) * .62); height: calc(var(--lt) * .62); opacity: .2; }
 .tf-light .tf-red { background: #ff3b3b; box-shadow: 0 0 16px #ff3b3b; } .tf-light .tf-red .emo { opacity: 1; }
 .tf-light.go .tf-red { background: #333; box-shadow: none; } .tf-light.go .tf-red .emo { opacity: .2; }
 .tf-light.go .tf-green { background: #2ecc71; box-shadow: 0 0 16px #2ecc71; } .tf-light.go .tf-green .emo { opacity: 1; }
 .tf-light.flash .tf-green { animation: blink .4s infinite; } @keyframes blink { 50% { opacity: .3; } }
-.tf-light b { color: #fff; font-size: 16px; }
+.tf-light b { color: #fff; font-size: calc(var(--lt) * .34); }
 .tf-ctl { display: flex; gap: 14px; flex: none; } .tf-ctl .btn { font-size: 20px; padding: 14px 24px; } .tf-ctl .emo { width: 28px; height: 28px; }
 
 /* 拼图 */

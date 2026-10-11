@@ -420,7 +420,7 @@
       hydrate(field);
       let row = 0, looked = false, crossed = 0, phase = 'red', pt = performance.now(), dur = 3, done = false, lastWarn = 0, warnedRed = false;
       const goal = () => { const g = GOALS[crossed % GOALS.length]; field.querySelector('.tf-goal').innerHTML = E(g[0]) + '<b>' + g[1] + '</b>'; hydrate(field); };
-      const place = () => { kid.style.bottom = (row / (L + 2) * 100 + 100 / (L + 2) * .12) + '%'; };
+      const place = () => { kid.style.bottom = (row / (L + 2) * 100 + 100 / (L + 2) * .04) + '%'; };
       const warn = (t, cost) => { const now = performance.now(); if (cost !== false) { S.miss++; S.wrong++; } Audio2.sfx('bong', .4); nudge(kid); if (now - lastWarn > 1500) { lastWarn = now; UI.toast(t, 1600); Voice.say(t); } };
       const flashing = () => phase === 'green' && (performance.now() - pt) / 1000 > dur - 2;
       const look = () => { if (done) return; if (row !== 0) return; looked = true; kid.classList.remove('looking'); void kid.offsetWidth; kid.classList.add('looking'); Audio2.sfx('whoosh', .2); };

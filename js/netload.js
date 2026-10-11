@@ -45,7 +45,7 @@
   function trackNode(n) {
     switch (n.tagName) {
       case 'IMG': trackImg(n); break;
-      case 'SCRIPT': if (n.src) trackEl(n, n.src, ['load', 'error']); break;
+      case 'SCRIPT': if (n.src && !n.dataset.bg) trackEl(n, n.src, ['load', 'error']); break; // data-bg：后台加载的 3D 模型，不拦场景
       case 'LINK': if (/stylesheet/i.test(n.rel) && n.href && !n.sheet) trackEl(n, n.href, ['load', 'error']); break;
       case 'AUDIO': case 'VIDEO': trackMedia(n); break;
     }

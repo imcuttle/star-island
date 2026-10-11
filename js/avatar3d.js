@@ -8,7 +8,8 @@
   const raw = {}, waiters = {}, gltfP = {};
   // 模型文件脚本调用 __CH(key, base64)
   window.__CH = (k, b64) => { raw[k] = b64; (waiters[k] || []).forEach(f => f()); delete waiters[k]; };
-  A.supported = () => { try { if (!window.THREE || !THREE.GLTFLoader) return false; if (A._sup != null) return A._sup; const c = document.createElement('canvas'); return (A._sup = !!(c.getContext('webgl2') || c.getContext('webgl'))); } catch (e) { return false; } };
+  // 只探测一次，探测用的 WebGL 上下文马上释放（浏览器同时能开的上下文有限，建一个也要几十到几百毫秒）
+  A.supported = () => { try { if (!window.THREE || !THREE.GLTFLoader) return false; if (A._sup != null) return A._sup; const c = document.createElement('canvas'), gl = c.getContext('webgl2') || c.getContext('webgl'), l = gl && gl.getExtension('WEBGL_lose_context'); if (l) l.loseContext(); return (A._sup = !!gl); } catch (e) { return false; } };
   A.has = k => !!(window.CHAR_INDEX && CHAR_INDEX[k]);
 
   function loadRaw(k) {
@@ -16,7 +17,8 @@
     return new Promise((res, rej) => {
       (waiters[k] = waiters[k] || []).push(res);
       if (waiters[k].length > 1) return;
-      const s = document.createElement('script'); s.src = 'assets/models/c/' + k + '.js'; s.async = true;
+      // data-bg：不计入 NetLoad。要等模型的地方（make / portrait）由下面的 busy 计数负责，后台渲染的立绘就不会拖住场景
+      const s = document.createElement('script'); s.src = 'assets/models/c/' + k + '.js'; s.async = true; s.dataset.bg = 1;
       s.onerror = () => { delete waiters[k]; rej(new Error('model ' + k)); };
       document.head.appendChild(s);
     });
@@ -537,7 +539,7 @@
     if (!insts.has(k)) { insts.set(k, A.make(key, o)); if (insts.size > 4) insts.delete(insts.keys().next().value); }
     return insts.get(k).then(av => { av.rotation.set(0, 0, 0); return av; });
   }
-  // opts: { pose:'idle', t: 动画时间, size: 像素, style, frame:'full'|'bust'|'head', yaw }
+  // opts: { pose:'idle', t: 动画时间, size: 像素, style, frame:'full'|'bust'|'head', yaw, bg: 后台渲染（不计入 busy，场景不等它） }
   // 立绘持久缓存（IndexedDB）：第二次打开直接出图，不用再等 3D 渲染
   const SHOT_VER = 'v5';
   let idbP = null;
@@ -547,14 +549,18 @@
   }
   const idbGet = k => idb().then(db => db && new Promise(res => { try { const q = db.transaction('s').objectStore('s').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); } catch (e) { res(null); } }));
   const idbPut = (k, v) => idb().then(db => { try { db && db.transaction('s', 'readwrite').objectStore('s').put(v, k); } catch (e) {} });
+  // 后台立绘（opts.bg）缓存里没有时先排队，等 A.bgGate()（App 设置：当前场景切换完）再下载模型、渲染，不和新场景抢主线程；
+  // 排队期间前台也要同一张图就立刻开工（前台的等待计入 busy，场景要等它，不能反过来让它等场景）
+  const bgKick = new Map(), urgent = new Set();
   A.portrait = function (key, opts) {
     opts = opts || {};
     const style = opts.style || 'kid', size = opts.size || 256, frame = opts.frame || 'full', pose = opts.pose || 'idle';
     const ck = [key, style, size, frame, pose, opts.yaw || 0, opts.t || 0, opts.hat || '', opts.wand || ''].join('|');
-    if (shotCache.has(ck)) return shotCache.get(ck);
-    const p0 = idbGet(SHOT_VER + '|' + ck).then(hit => hit || render().then(u => { if (u) idbPut(SHOT_VER + '|' + ck, u); return u; }));
+    if (shotCache.has(ck)) { if (!opts.bg) { urgent.add(ck); const go = bgKick.get(ck); if (go) go(); } return shotCache.get(ck); }
+    const later = () => opts.bg && A.bgGate && !urgent.has(ck) ? new Promise(r => { bgKick.set(ck, r); A.bgGate().then(r); }).then(() => { bgKick.delete(ck); }) : null;
+    const p0 = idbGet(SHOT_VER + '|' + ck).then(hit => hit || Promise.resolve(later()).then(render).then(u => { if (u) idbPut(SHOT_VER + '|' + ck, u); return u; }));
     shotCache.set(ck, p0); return p0;
-    function render() { return queue = queue.then(() => inst(key, { height: 1, style, hat: opts.hat, wand: opts.wand }).then(av => {
+    function render() { return queue = queue.then(() => inst(key, { height: 1, style, hat: opts.hat, wand: opts.wand, bg: opts.bg }).then(av => {
       const { rd, cam } = shotRenderer(); const st = STYLE[style] || STYLE.kid;
       const px = st.pixel ? Math.max(48, Math.round(size / st.pixel)) : size;
       rd.setSize(px, px, false); A.setViewport(px, px); outlineU.uOl.value = 2 / px * (st.pixel ? .8 : Math.max(.9, px / 120));
@@ -599,8 +605,10 @@
     if (!A.supported() || window.__TEST_LITE) return; // 冒烟测试时不渲染立绘，省 CPU
     (root || document).querySelectorAll('img[data-av]:not([data-avd])').forEach(img => {
       img.dataset.avd = 1; const k = img.dataset.av; if (!A.has(k)) { img.classList.remove('av-wait'); if (img.dataset.fb && img.src.startsWith('data:image/gif')) img.src = img.dataset.fb; return; }
-      A.portrait(k, { hat: img.dataset.hat, wand: img.dataset.wand, style: img.dataset.style || A.styleOf(Core.theme()), pose: img.dataset.pose || 'idle', frame: img.dataset.frame || 'full', size: +img.dataset.size || 256, yaw: img.dataset.yaw != null ? +img.dataset.yaw : undefined })
-        .then(u => { if (!img.isConnected) return; img.classList.remove('av-wait'); if (u) { img.src = u; img.classList.add('av3d'); if (/pixel/.test(img.dataset.style || Core.theme())) img.style.imageRendering = 'pixelated'; } else if (img.dataset.fb) img.src = img.dataset.fb; });
+      // data-bg：已经放了预渲染图顶着，3D 立绘在后台慢慢渲染，好了再换上；渲染失败就继续用预渲染图
+      const bg = !!img.dataset.bg;
+      A.portrait(k, { hat: img.dataset.hat, wand: img.dataset.wand, style: img.dataset.style || A.styleOf(Core.theme()), pose: img.dataset.pose || 'idle', frame: img.dataset.frame || 'full', size: +img.dataset.size || 256, yaw: img.dataset.yaw != null ? +img.dataset.yaw : undefined, bg })
+        .then(u => { if (!img.isConnected) return; img.classList.remove('av-wait'); if (u) { img.src = u; img.classList.add('av3d'); if (/pixel/.test(img.dataset.style || Core.theme())) img.style.imageRendering = 'pixelated'; } else if (img.dataset.fb && !bg) img.src = img.dataset.fb; });
     });
   };
 
@@ -649,9 +657,9 @@
     maskT = new T.CanvasTexture(c); maskT.colorSpace = T.SRGBColorSpace; return maskT;
   }
   A.outlineU = outlineU;
-  // 记录正在加载 / 解析的模型与立绘，场景切换时等它们全部完成再揭开画面（见 Preload.settle）
+  // 记录正在加载 / 解析的模型与立绘，场景切换时等它们全部完成再揭开画面（见 Preload.settle）；opts.bg 的后台任务不算
   let busyN = 0; const busyW = [];
-  const track = f => function () { const p = f.apply(this, arguments); if (p && p.then) { busyN++; const fin = () => { if (--busyN === 0) busyW.splice(0).forEach(r => r()); }; p.then(fin, fin); } return p; };
+  const track = f => function (k, o) { const p = f.apply(this, arguments); if (p && p.then && !(o && o.bg)) { busyN++; const fin = () => { if (--busyN === 0) busyW.splice(0).forEach(r => r()); }; p.then(fin, fin); } return p; };
   A.make = track(A.make); A.portrait = track(A.portrait);
   A.idle = () => busyN === 0 ? Promise.resolve() : new Promise(r => busyW.push(r));
   A._busy = () => busyN;

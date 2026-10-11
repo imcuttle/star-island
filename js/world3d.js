@@ -18,7 +18,9 @@
     pro: { skyTop: 0x1a1f4a, skyBot: 0xff9a6b, fog: 0x6a5a8a, sea: 0x24507e, seaDeep: 0x0c1d3a, sun: 0xffc59a, sunI: 2.6, hemiSky: 0x7c86d6, hemiGround: 0x3a2d4a, hemiI: .8, grass: 0x4f9a52, sand: 0xd7b98a, exposure: 1.1, night: .75 },
   };
 
-  W.supported = function () { if (window.__TEST_LITE) return false; try { const c = document.createElement('canvas'); return !!(window.THREE && (c.getContext('webgl2') || c.getContext('webgl'))); } catch (e) { return false; } };
+  // 只探测一次（以前每进一次主地图都新建一个 WebGL 上下文又不释放），探测用的上下文马上释放
+  let sup = null;
+  W.supported = function () { if (window.__TEST_LITE || !window.THREE) return false; if (sup != null) return sup; try { const c = document.createElement('canvas'), gl = c.getContext('webgl2') || c.getContext('webgl'), l = gl && gl.getExtension('WEBGL_lose_context'); if (l) l.loseContext(); sup = !!gl; } catch (e) { sup = false; } return sup; };
 
   W.init = function (el, o) {
     T = window.THREE; container = el; opts = o; onPick = o.onPick;

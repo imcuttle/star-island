@@ -71,17 +71,19 @@
     const fb = H.img ? 'assets/img/' + H.img + '_' + (pose === 'front' ? 'front' : pose || 'idle') + '.png' : Core.emoSrc(H.e);
     const pose3 = /jump|walk/.test(pose || '') ? 'wave' : pose === 'hit' ? 'hit' : 'idle';
     // 会渲染 3D 立绘时先放透明占位（带一点呼吸光），渲染好淡入；渲染失败才退回表情，避免「先黄脸再换人」的闪烁
-    const wait = m && Avatar3D.supported() && !window.__TEST_LITE;
-    const src = wait ? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' : fb;
-    return '<img class="' + (H.img ? 'hero-img' : 'emo hero-emo') + (wait ? ' av-wait' : '') + '" src="' + src + '" data-fb="' + fb + '" draggable="false"' + (m ? ' data-av="' + m + '" data-pose="' + pose3 + '" data-frame="' + frame + '" data-size="' + size + '"' + (pose === 'front' ? ' data-yaw="0"' : '') : '') + '>';
+    // 头像 / 半身（HUD 等）有预渲染的大头照：直接先显示它，3D 立绘在后台渲染（data-bg），场景不用等模型下载
+    const wait = m && Avatar3D.supported() && !window.__TEST_LITE, ph = wait && frame !== 'full';
+    const src = ph ? heroCard(H, 'head') : wait ? 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' : fb;
+    return '<img class="' + (H.img ? 'hero-img' : 'emo hero-emo') + (wait && !ph ? ' av-wait' : '') + '" src="' + src + '" data-fb="' + fb + '" draggable="false"' + (ph ? ' data-bg="1"' : '') + (m ? ' data-av="' + m + '" data-pose="' + pose3 + '" data-frame="' + frame + '" data-size="' + size + '"' + (pose === 'front' ? ' data-yaw="0"' : '') : '') + '>';
   }
   // 2D 小游戏用的角色精灵：从同一个 3D 模型渲染几个姿势（侧身朝右），保证头像 / 家园 / 小游戏是同一个人
+  // 后台渲染，主地图不等它；开小游戏前由 Preload.forGame 等它渲染好
   const SHOT_POSES = { idle: ['idle', .35, .9], front: ['idle', .35, 0], walk_a: ['walk', .15, .9], walk_b: ['walk', .55, .9], jump: ['jump', .55, .9], hit: ['hit', .25, .9] };
   const SHOTS = {};
   function prepHeroShots(p) {
     const H = heroOf(p && p.hero), m = heroModel(p); if (!m || !Avatar3D.supported() || window.__TEST_LITE) return Promise.resolve(null);
     const k = H.id + '|' + (p.equip.hat || '') + '|' + (p.equip.wand || ''); if (SHOTS[k]) return SHOTS[k];
-    return (SHOTS[k] = Promise.all(Object.entries(SHOT_POSES).map(([n, [pose, t, yaw]]) => Avatar3D.portrait(m, { pose, t, yaw, size: 192, style: 'kid', hat: p.equip.hat, wand: p.equip.wand }).then(u => [n, u])))
+    return (SHOTS[k] = Promise.all(Object.entries(SHOT_POSES).map(([n, [pose, t, yaw]]) => Avatar3D.portrait(m, { pose, t, yaw, size: 192, style: 'kid', hat: p.equip.hat, wand: p.equip.wand, bg: true }).then(u => [n, u])))
       .then(list => { const o = {}; list.forEach(([n, u]) => { if (u) o[n] = u; }); if (!o.idle) { delete SHOTS[k]; return null; } SHOTS[k].done = o; return o; })); // 模型还没加载好导致渲染失败时，下次再试，不把失败结果缓存住
   }
   // 同步取：已经渲染好就返回 dataURL，否则 null（调用方退回表情）
@@ -129,23 +131,26 @@
   function taskProgress(key, n) { const p = P(); ensureDaily(p); p.daily.tasks.forEach(t => { if (t.k === key && t.cur < t.goal) { t.cur = Math.min(t.goal, t.cur + (n || 1)); if (t.cur >= t.goal) setTimeout(() => UI.toast('📋 任务完成：' + t.n + '，快去领奖励！'), 900); } }); save(); updateHUD(); }
 
   /* ================= 屏幕切换 ================= */
-  let curScreen = null, showTok = 0;
+  let curScreen = null, showTok = 0, showing = 0; const shownW = [];
+  // 后台的 3D 立绘（HUD 头像、小游戏精灵）等场景切换完、淡入以后再开工，不和新场景抢主线程（见 Avatar3D.portrait 的 bg）
+  if (window.Avatar3D) Avatar3D.bgGate = () => showing ? new Promise(r => shownW.push(r)) : Promise.resolve();
   // 切换场景：① 先停在当前画面，把新场景要用的素材全部下载好（Preload.forScene，进度框）
   //          ② 再搭建新场景，等它自己发起的加载（立绘、3D 模型、贴图）也全部完成才淡入；el.ready 在淡入时 resolve，玩法 / 计时从这之后开始
   //          ③ extra.music 在淡入时开始播放；返回的 Promise 在场景真正显示出来后 resolve（被更新的切换取代则不 resolve）
   function show(name, build, extra) {
-    const tok = ++showTok;
+    const tok = ++showTok; showing++;
+    const fin = () => { if (--showing) return; setTimeout(() => { if (!showing) shownW.splice(0).forEach(r => r()); }, 600); };
     return new Promise(done => Preload.gate(Preload.forScene(name, extra), () => {
-      if (tok !== showTok) return;
+      if (tok !== showTok) return fin();
       if ((curScreen === 'hub' || curScreen === 'title') && window.World3D) World3D.dispose();
       Voice.stop(); Core.leave(); curScreen = name; document.documentElement.dataset.screen = name; // 安全区（刘海 / 底部横条）的底色跟着场景换
       const el = h('div', 'screen s-' + name); app().innerHTML = ''; app().appendChild(el);
       let ready; el.ready = new Promise(r => { ready = r; });
       try { build(el); hydrate(el); } catch (e) { console.error(e); }
       Preload.settle(el).then(() => {
-        if (!el.isConnected) return; requestAnimationFrame(() => el.classList.add('in'));
+        if (!el.isConnected) return fin(); requestAnimationFrame(() => el.classList.add('in'));
         if (extra && extra.music) Audio2.playMusic(extra.music);
-        ready(el); done(el);
+        ready(el); done(el); fin();
       });
     }));
   }
@@ -176,7 +181,8 @@
       };
       if (document.readyState === 'complete') setTimeout(startWorld, 60); else addEventListener('load', startWorld, { once: true });
       const cur = Store.db.cur && Store.db.profiles[Store.db.cur] || profs[profs.length - 1];
-      el.ready.then(() => titleCast(el.querySelector('.t-cast'), cur && cur.hero));
+      // 封面显示出来以后，后台先把主地图的素材下好（结果留在缓存里，不弹进度框），起名字、挑角色的工夫就下完了
+      el.ready.then(() => { titleCast(el.querySelector('.t-cast'), cur && cur.hero); setTimeout(() => el.isConnected && Preload.forScene('hub'), 1500); });
     }, { music: 'happy' });
   }
   // 封面演员：主角站中间（有存档就是自己的角色），两位伙伴在身后两侧；用预渲染的挥手动图，不加载 3D 模型
@@ -424,7 +430,7 @@
   function battleQs(pool, n) { const out = []; for (let i = 0; i < n * 3 && out.length < n; i++) { const g = R.pick(pool); try { const q = R.pick(CONTENT.G[g.gen](P().grade)); if (q && q.ch) out.push(q); } catch (e) {} } return out; }
   function battle(zid, tier) {
     const z = zid === 'dragon' ? DRAGON : CATALOG.zone(zid), bank = battleQs(battlePool(zid), 40);
-    Preload.gate(Preload.forBattle(z, z.boss.sprite, 'battle', bank), () => battleRun(zid, tier, bank));
+    Preload.gate(Preload.forBattle(z, z.boss.sprite, bank), () => battleRun(zid, tier, bank));
   }
   function battleRun(zid, tier, bank) {
     const p = P(); const isDragon = zid === 'dragon';
@@ -979,6 +985,6 @@
     addEventListener('beforeunload', e => { if (!Store.p) return; save(); e.preventDefault(); e.returnValue = ''; return ''; });
     if (Store.p) enter(false); else titleScreen();
   }
-  window.App = { HELP, heroShot, prepHeroShots, boot, hub, zoneScreen, titleScreen, startGame, battle, themeOf, HEROES, PETS, SHOP, THEMES, show, decayPet, petXP, taskProgress, addCoins, checkBadges, heroModel, heroOf, addXP };
+  window.App = { HELP, heroShot, heroHTML, prepHeroShots, boot, hub, zoneScreen, titleScreen, startGame, battle, themeOf, HEROES, PETS, SHOP, THEMES, show, decayPet, petXP, taskProgress, addCoins, checkBadges, heroModel, heroOf, addXP };
   document.addEventListener('DOMContentLoaded', boot);
 })();
