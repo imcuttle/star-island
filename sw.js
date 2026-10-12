@@ -34,5 +34,5 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET' || req.headers.has('range')) return; // 音频分段请求交给浏览器
   const u = new URL(req.url);
   if (u.origin !== self.location.origin) return;
-  e.respondWith(u.pathname.includes('/assets/') ? asset(req) : code(req));
+  e.respondWith(/\/(assets|motion\/vendor|motion\/voice)\//.test(u.pathname) ? asset(req) : code(req));
 });

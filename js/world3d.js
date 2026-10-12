@@ -113,6 +113,9 @@
     return g;
   }
 
+  // 糊涂龙城堡：缩放 s、离中心水平距离 r、高度 h、标签锚点相对城堡底座的高度 top（未缩放）
+  const DRAGON = { s: .6, r: 56, h: 16, top: 12 };
+  let dragonPivot = null, dragonAnchor = null;
   let ZPOS = {};
   const layout = ids => { ZPOS = {}; ids.forEach((id, i) => { const a = i / ids.length * Math.PI * 2 - Math.PI * .75, r = ids.length > 6 ? 31 : 24; ZPOS[id] = [Math.cos(a) * r, 0, Math.sin(a) * r]; }); };
   function buildWorld(P, o) {
@@ -158,8 +161,11 @@
     sky.add(mesh(new T.BoxGeometry(5, 3.5, 5), dark, 0, 2.75, 0));
     sky.add(mesh(new T.CylinderGeometry(1.4, 1.5, 7, 8), dark, 0, 5, 0)); sky.add(mesh(new T.ConeGeometry(1.9, 3, 8), roofM, 0, 10, 0));
     const glow = new T.PointLight(o.dragon ? 0xffd23f : 0xb05cff, 60, 30); glow.position.set(0, 6, 4); sky.add(glow);
-    sky.position.set(-4, 30, -66); world.add(sky); spinners.push({ o: sky, s: 0, bob: .8, y: 30 });
-    registerZone('dragon', sky, [-4, 44, -66], world);
+    // 固定位置时它总在画面外，所以外层 pivot 每帧摆到镜头正对面、岛环后方的天空里（见 loop）
+    dragonPivot = new T.Group(); dragonPivot.scale.setScalar(DRAGON.s); dragonPivot.add(sky); world.add(dragonPivot);
+    spinners.push({ o: sky, s: 0, bob: .8, y: 0 });
+    registerZone('dragon', sky, [0, DRAGON.h + DRAGON.top * DRAGON.s, -DRAGON.r], world);
+    dragonAnchor = anchors[anchors.length - 1].p;
 
     // 远处小岛装饰
     for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + .3, r = 78 + (i % 3) * 14; const g = island(2 + (i % 3), P, i); g.position.set(Math.cos(a) * r, -.2, Math.sin(a) * r); const t = (i % 2 ? tree : roundTree)(P, .8); t.position.y = 1.6; g.add(t); world.add(g); }
@@ -336,7 +342,7 @@
   function resize() {
     if (!renderer) return; const w = container.clientWidth, h = container.clientHeight;
     renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
-    tDist = opts && opts.cinematic ? (w < h ? 96 : 62) : w < h ? 118 : w < 900 ? 92 : 82;
+    tDist = opts && opts.cinematic ? (w < h ? 96 : 62) : w < h ? 118 : w < 900 ? 122 : 110; // 十个区的岛环半径 31，镜头要拉远并抬高视点，顶部才放得下糊涂龙城堡
   }
 
   const ray = new (window.THREE ? THREE.Raycaster : Object)(), mouse = { x: 0, y: 0 };
@@ -378,7 +384,12 @@
     if (autoRot) tYaw += dt * (opts.cinematic ? .025 : .05);
     yaw += (tYaw - yaw) * .08; dist += (tDist - dist) * .08;
     camera.position.set(Math.sin(yaw) * dist * Math.cos(pitch), dist * Math.sin(pitch), Math.cos(yaw) * dist * Math.cos(pitch));
-    camera.lookAt(0, opts.cinematic ? 6 : 1, 0);
+    camera.lookAt(0, opts.cinematic ? 6 : 12, 0);
+    if (dragonPivot) {
+      const dx = -Math.sin(yaw) * DRAGON.r, dz = -Math.cos(yaw) * DRAGON.r;
+      dragonPivot.position.set(dx, DRAGON.h, dz); dragonPivot.rotation.y = yaw;
+      dragonAnchor.set(dx, DRAGON.h + DRAGON.top * DRAGON.s, dz);
+    }
     // 海浪
     const pa = ocean.geometry.attributes.position, arr = pa.array;
     for (let i = 0; i < arr.length; i += 3) { const x = oceanBase[i], z = oceanBase[i + 2]; arr[i + 1] = Math.sin(x * .12 + t * 1.1) * .35 + Math.cos(z * .15 + t * .8) * .3; }
@@ -404,7 +415,7 @@
     cancelAnimationFrame(raf); removeEventListener('resize', resize);
     if (renderer) { renderer.dispose(); renderer.forceContextLoss && renderer.forceContextLoss(); renderer.domElement.remove(); }
     if (labelsEl) labelsEl.remove();
-    renderer = scene = camera = null; clouds = []; spinners = []; zoneObjs = {}; anchors = []; hovered = null;
+    renderer = scene = camera = null; clouds = []; spinners = []; zoneObjs = {}; anchors = []; hovered = null; dragonPivot = dragonAnchor = null;
   };
   W.resize = resize;
   window.World3D = W;

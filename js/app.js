@@ -893,9 +893,11 @@
       el.querySelector('.ptabs').onclick = e => {
         const b = e.target.closest('button'); if (!b) return; const id = b.dataset.p, s = SP.find(x => x.id === id);
         if (s && !open(s)) { Audio2.sfx('wrong', .3); UI.toast('🔒 角色升到 Lv.' + s.lv + ' 就能解锁「' + s.n + '」啦！'); Voice.say('升到' + s.lv + '级就能玩' + s.n + '啦'); return; }
-        Audio2.sfx('click', .3); $$('.ptabs .btn', el).forEach(x => x.classList.toggle('on', x === b));
+        Audio2.sfx('click', .3); $$('.ptabs .btn', el).forEach(x => x.classList.toggle('on', x === b)); b.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
         run(id === 'piano' ? piano : id === 'draw' ? drawBoard : bx => Playland.open(id, bx));
       };
+      // 鼠标滚轮也能左右滑动放不下的那一排（标签、曲目、工具条）
+      el.addEventListener('wheel', e => { const s = e.target.closest('.ptabs,.songs,.guide,.dtools'); if (!s || s.scrollWidth <= s.clientWidth + 1 || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; e.preventDefault(); s.scrollLeft += e.deltaY; }, { passive: false });
       run(piano);
     });
     Audio2.stopMusic();
@@ -935,16 +937,24 @@
       '康康舞': [0, 1, 3, 2, 1, 4, 4, 4, 5, 2, 3, 1, 1, 1, 3, 2, 1, 0, 7, 6, 5, 4, 3, 2, 1, 0, 1, 3, 2, 1, 4, 4, 4, 5, 2, 3, 1, 3, 2, 1, 0, 4, 1, 2, 0],
       '摇篮曲': [2, 2, 4, 2, 2, 4, 2, 4, 7, 6, 5, 5, 4, 1, 2, 3, 1, 1, 2, 3, 1, 3, 6, 5, 4, 6, 7, 0, 0, 7, 5, 3, 4, 2, 0, 3, 4, 5, 4, 0, 0, 7, 5, 3, 4, 2, 0, 3, 2, 1, 0],
     };
-    box.innerHTML = '<div class="songs">跟着弹：' + Object.keys(songs).map(s => '<button class="chip" data-s="' + s + '">' + s + '</button>').join('') + '<button class="chip" data-s="">自由弹</button></div><div class="guide"></div><div class="keys">' + notes.map((n, i) => '<button class="key" data-i="' + i + '" style="--kc:' + ['#ff5d73', '#ff9f43', '#ffd23f', '#7bd389', '#3ec1d3', '#a78bfa', '#ff8fc7', '#ff5d73'][i] + '"><span class="kn">' + n[1] + '</span><span class="kl latin">' + n[0][0] + '</span></button>').join('') + '</div>';
+    box.innerHTML = '<div class="songs"><span>跟着弹：</span>' + Object.keys(songs).map(s => '<button class="chip" data-s="' + s + '">' + s + '</button>').join('') + '<button class="chip" data-s="">自由弹</button></div><div class="guide"></div><div class="keys">' + notes.map((n, i) => '<button class="key" data-i="' + i + '" style="--kc:' + ['#ff5d73', '#ff9f43', '#ffd23f', '#7bd389', '#3ec1d3', '#a78bfa', '#ff8fc7', '#ff5d73'][i] + '"><span class="kn">' + n[1] + '</span><span class="kl latin">' + n[0][0] + '</span></button>').join('') + '</div>';
     let song = null, pos = 0;
     const guide = box.querySelector('.guide');
-    const showGuide = () => { if (!song) { guide.innerHTML = '随便弹弹，创作你自己的音乐吧！'; $$('.key', box).forEach(k => k.classList.remove('next')); return; } guide.innerHTML = song.map((n, i) => '<i class="' + (i < pos ? 'done' : i === pos ? 'cur' : '') + '">' + notes[n][1] + '</i>').join(''); $$('.key', box).forEach(k => k.classList.toggle('next', +k.dataset.i === song[pos])); };
+    // 曲子长、屏幕窄时提示条横向滑动，当前要弹的音符始终滚到中间
+    const showGuide = () => { if (!song) { guide.innerHTML = '随便弹弹，创作你自己的音乐吧！'; $$('.key', box).forEach(k => k.classList.remove('next')); return; } guide.innerHTML = song.map((n, i) => '<i class="' + (i < pos ? 'done' : i === pos ? 'cur' : '') + '">' + notes[n][1] + '</i>').join(''); $$('.key', box).forEach(k => k.classList.toggle('next', +k.dataset.i === song[pos])); const c = guide.querySelector('.cur'); if (c && guide.scrollWidth > guide.clientWidth) guide.scrollTo({ left: c.offsetLeft - guide.offsetLeft - guide.clientWidth / 2 + c.offsetWidth / 2, behavior: 'smooth' }); };
     box.querySelector('.songs').onclick = e => { const b = e.target.closest('[data-s]'); if (!b) return; song = b.dataset.s ? songs[b.dataset.s] : null; pos = 0; $$('.songs .chip', box).forEach(x => x.classList.toggle('on', x === b)); showGuide(); };
-    $$('.key', box).forEach(k => k.onpointerdown = e => {
-      e.preventDefault(); const i = +k.dataset.i; tone(notes[i][2]); k.classList.add('down'); setTimeout(() => k.classList.remove('down'), 180);
+    const play = k => {
+      const i = +k.dataset.i; tone(notes[i][2]); k.classList.add('down'); clearTimeout(k._t); k._t = setTimeout(() => k.classList.remove('down'), 180);
       const r = k.getBoundingClientRect(); UI.burst(r.left + r.width / 2, r.top + 20, R.pick(['🎵', '🎶', '✨']), 3);
       if (song && i === song[pos]) { pos++; if (pos >= song.length) { Audio2.sfx('win', .5); UI.confetti(50); pos = 0; UI.toast('弹得真棒！'); } showGuide(); }
-    });
+    };
+    // 每根手指单独记录按在哪个键上：多指同时弹、按住滑过琴键（刮奏）都能响
+    const keysEl = box.querySelector('.keys'), held = new Map();
+    const keyAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest('.key'); };
+    keysEl.onpointerdown = e => { const k = e.target.closest('.key'); if (!k) return; e.preventDefault(); held.set(e.pointerId, k); play(k); };
+    keysEl.onpointermove = e => { if (!held.has(e.pointerId)) return; const k = keyAt(e); if (k && k !== held.get(e.pointerId) && keysEl.contains(k)) { held.set(e.pointerId, k); play(k); } };
+    keysEl.onpointerup = keysEl.onpointercancel = e => held.delete(e.pointerId);
+    keysEl.oncontextmenu = e => e.preventDefault();
     showGuide();
   }
   function drawBoard(box) {
@@ -953,8 +963,16 @@
     box.innerHTML = '<div class="dtools">' + cols.map((c, i) => '<button class="dc' + (i === 1 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>').join('') + '<span class="sep"></span><button class="dsz on" data-z="6">●</button><button class="dsz" data-z="14">⬤</button><span class="sep"></span>' + stamps.map(s => '<button class="dst" data-s="' + s + '">' + E(s) + '</button>').join('') + '<span class="sep"></span><button class="dst der" data-er="1" data-tip="橡皮" data-say="橡皮">' + E('🧽') + '</button><button class="btn sm dclear">清空</button></div><canvas class="dcanvas"></canvas>';
     hydrate(box);
     const cv = box.querySelector('canvas'), ctx = cv.getContext('2d');
-    const fit = () => { const r = cv.getBoundingClientRect(); const img = cv.width ? ctx.getImageData(0, 0, cv.width, cv.height) : null; cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height); if (img) ctx.putImageData(img, 0, 0); };
-    setTimeout(fit, 50);
+    // 画布跟着容器大小走（转屏、窗口缩放），已经画好的内容按比例缩放保留下来
+    let drawn = false;
+    const fit = () => {
+      const r = cv.getBoundingClientRect(), w = Math.max(1, Math.round(r.width * devicePixelRatio)), h = Math.max(1, Math.round(r.height * devicePixelRatio));
+      if (w === cv.width && h === cv.height) return;
+      let old = null; if (drawn) { old = document.createElement('canvas'); old.width = cv.width; old.height = cv.height; old.getContext('2d').drawImage(cv, 0, 0); }
+      cv.width = w; cv.height = h; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+      if (old) { const s = Math.min(w / old.width, h / old.height); ctx.drawImage(old, (w - old.width * s) / 2, (h - old.height * s) / 2, old.width * s, old.height * s); }
+    };
+    const ro = new ResizeObserver(fit); ro.observe(cv); fit();
     let color = cols[1], size = 6, stamp = null, erase = false, last = null;
     const pick = b => { $$('.dc,.dst', box).forEach(x => x.classList.toggle('on', x === b)); cv.classList.toggle('erasing', erase); };
     box.querySelector('.dtools').onclick = e => {
@@ -970,11 +988,12 @@
     const stroke = (a, b) => { ctx.strokeStyle = erase ? '#fff' : color; ctx.lineWidth = size * (erase ? 3 : 1) * devicePixelRatio; ctx.lineCap = ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
     cv.onpointerdown = e => {
       cv.setPointerCapture(e.pointerId); const [x, y] = pt(e);
-      if (stamp) { const img = new Image(); img.onload = () => ctx.drawImage(img, x - 40 * devicePixelRatio, y - 40 * devicePixelRatio, 80 * devicePixelRatio, 80 * devicePixelRatio); img.src = box.querySelector('.dst[data-s="' + stamp + '"] img').src; Audio2.sfx('pop', .4); return; }
-      last = [x, y]; stroke(last, [x + .01, y]);
+      if (stamp) { drawn = true; const img = new Image(); img.onload = () => ctx.drawImage(img, x - 40 * devicePixelRatio, y - 40 * devicePixelRatio, 80 * devicePixelRatio, 80 * devicePixelRatio); img.src = box.querySelector('.dst[data-s="' + stamp + '"] img').src; Audio2.sfx('pop', .4); return; }
+      drawn = true; last = [x, y]; stroke(last, [x + .01, y]);
     };
     cv.onpointermove = e => { if (!last) return; const q = pt(e); stroke(last, q); last = q; };
     cv.onpointerup = cv.onpointercancel = () => { last = null; };
+    return () => ro.disconnect();
   }
 
   /* ================= 启动 ================= */

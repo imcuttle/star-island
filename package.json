@@ -18,9 +18,64 @@
     "fonts": "python3 tools/fonts.py",
     "hero-cards": "node tools/hero_cards.mjs",
     "test:quick": "node tools/test.mjs 2 quiz,memory,catch,sort,order,whack,platform,kart",
-    "test:platform": "node tools/test_platform.cjs 20"
+    "test:platform": "node tools/test_platform.cjs 20",
+    "motion:assets": "node tools/fetch_motion_assets.mjs",
+    "electron": "node tools/fetch_motion_assets.mjs && electron .",
+    "electron:dist": "node tools/fetch_motion_assets.mjs && npx -y electron-builder@26 --publish never",
+    "electron:dir": "node tools/fetch_motion_assets.mjs && npx -y electron-builder@26 --dir --publish never",
+    "serve:https": "npm run build && node tools/serve_https.mjs",
+    "serve:https:src": "node tools/serve_https.mjs --src"
   },
   "devDependencies": {
-    "@breezystack/lamejs": "^1.2.7"
+    "@breezystack/lamejs": "^1.2.7",
+    "electron": "^38.8.6",
+    "@mediapipe/tasks-vision": "^0.10.21",
+    "vosk-browser": "^0.0.8"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "selfsigned": "^5.5.0",
+    "ws": "^8.22.0"
+  },
+  "main": "electron/main.cjs",
+  "build": {
+    "appId": "cool.star-island.motion",
+    "productName": "星星岛体感版",
+    "directories": {
+      "output": "release"
+    },
+    "asar": false,
+    "files": [
+      "index.html",
+      "manifest.webmanifest",
+      "sw.js",
+      "css/**",
+      "js/**",
+      "assets/**",
+      "motion/**",
+      "!motion/vendor/test-*",
+      "electron/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.education",
+      "extendInfo": {
+        "NSCameraUsageDescription": "体感游戏需要用摄像头识别动作",
+        "NSMicrophoneUsageDescription": "体感游戏需要用麦克风识别语音答题"
+      },
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

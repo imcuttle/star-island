@@ -35,6 +35,41 @@
 - **手机 / 平板**：可以「添加到主屏幕」作为独立 App 全屏打开（PWA，离线也能玩已下载过的内容）；适配 iPhone 刘海 / 灵动岛 / 底部横条和横竖屏切换；屏蔽下拉刷新、左右滑动返回、双指缩放、长按菜单，系统返回键当作游戏里的「返回」。
 - **性能**：3D 画质按设备自动分档（省电 / 均衡 / 高清：分辨率、抗锯齿、阴影、帧率上限），运行中帧率跟不上会自动降分辨率 / 降到 30 帧，减少卡顿和发热；也可以在家长中心手动选。
 
+## 桌面体感版（Electron）
+
+「体感乐园」：用摄像头识别全身动作、用麦克风识别语音，边运动边答题。有两种用法：
+
+- **网页版（https 静态站）**：浏览器能开摄像头时（https 或 localhost），主地图 dock 出现「体感」入口，用这台设备自己的摄像头和麦克风玩。手机 / 平板横放立起来、前置摄像头对着人，也可以投屏到电视；设置里有动态图解引导（摆放、距离、投屏、常亮，权限被拒 / 微信内打不开时怎么办）。语音答题用浏览器自带的语音识别（需联网，不支持的浏览器自动只用手势）。普通 http 或双击 `index.html` 打开时不出现任何体感入口。`npm run build` 会自动下载识别模型并只发布网页用得到的部分（单文件都在 25MB 以内）。
+- **桌面体感版（Electron）**：在网页版基础上，多了手机扫码当摄像头 / 麦克风 / 遥控器、IP 摄像头、本机离线语音识别。
+
+**键鼠 / 触屏兜底**：没有摄像头、画面里没人、或者刚用过键鼠 / 触屏时，游戏改由一个「虚拟小人」驱动，同一套动作识别照常工作，所有体感游戏都能玩：鼠标 / 手指 = 手（快速划动 = 挥手、点一下 = 出拳，第二根手指 = 另一只手）；←→ 左右、↑ 跳、↓ 蹲、空格出拳、F 双手前推、C 拍手、R 原地跑、1-7 摆姿势（举左 / 右 / 双手、摸头、叉腰、平举、单脚站）、8 张开腿、M 两手对称；触屏还会按游戏显示屏幕按钮条。
+
+```sh
+npm i                 # 首次
+npm run electron      # 自动下载 motion/vendor（识别模型约 100MB）后启动
+npm run electron:dist # 打安装包到 release/（mac dmg / win nsis；默认不签名）
+```
+
+- **性能**：动作识别（MediaPipe）在后台线程（Web Worker）里跑，主线程每帧只花约 0.2ms 取帧；Worker 起不来时自动退回主线程。离线语音识别（Vosk）也在 Worker 里，麦克风采集走 AudioWorklet。被弹层盖住的示范动画、预览画面不重画。
+- **入口**：主地图底部 dock 多一个「体感」按钮（快捷键 M）。网页版和桌面版共用下面的设置向导、交互和游戏。
+- **输入**：电脑摄像头 / USB 摄像头；手机扫码当摄像头和麦克风（局域网 WebRTC 直连，连不上自动改用 JPEG 图片流兜底；只能打开 http 地址时当遥控器）；局域网 IP 摄像头 App 的 MJPEG 地址。
+- **语音识别**：本机离线（Vosk，中 / 英文小模型，每道题按选项生成限定语法，孩子说得不标准也能认），或手机浏览器自带识别（需联网）。数字、「第一个」「选 A」等说法都能匹配。
+- **体感设置向导**：选设备与扫码 → 摆放站位（动态示意 + 实时检查距离 / 全身 / 光线 + 站姿标定）→ 动作测试（跳、蹲、左右、出拳、8 向挥手、拍手、举手、原地跑、捏手指逐项亮灯，可调灵敏度、镜像、精准模型、双人、手指识别）→ 声音测试（音量、拍手、喊叫、语音识别实测）→ 光标练习。
+- **沉浸交互**：举手出现体感光标（磁吸、停留圆环点击、前推 / 捏合立即点击，手放下或进入玩法自动隐藏）；游戏右下角实时线框小人（舞力全开式，可切换成摄像头画面或关闭，V 键）；离开画面自动暂停、回来自动继续；双手交叉暂停；暂停 / 结算界面可以说「继续」「再玩一次」。
+- **游戏**：复刻《星光节拍》（抖音体感节奏方块）、《疯狂兔子斗舞派对》、《体感酷跑》、《水果忍者》，以及原创《人体拼字墙》《空中神笔》《魔法咒语学院》《星星说》《星球保卫战·能量波》。题目来自同一套题库，可选学科，按年级出题，奖励金币和经验。
+
+| 文件 | 内容 |
+|---|---|
+| `electron/main.cjs` | 本机 http（页面）、局域网 https（手机页，自签名证书）、WebSocket 信令 / 兜底中转、MJPEG 代理、摄像头权限 |
+| `electron/preload.cjs` | 暴露 `StarNative`，注入 `motion/boot.js` |
+| `motion/boot.js` | 入口：判断环境（桌面版 / https 网页且能开摄像头），加载其余脚本，加 dock 按钮 |
+| `motion/core/` | 输入源、姿态识别（MediaPipe Pose / Hand）、动作与手势、键鼠触屏虚拟小人、语音、体感光标、合成音乐音效、游戏运行时 SDK |
+| `motion/ui/` | 体感乐园大厅、设置向导、动态火柴人示范 |
+| `motion/games/` | 各个体感游戏（`M.game({...})` 注册） |
+| `motion/phone/` | 手机输入端页面 |
+
+开发 / 测试：`node tools/test_motion.cjs <视频.mjpeg> <hub|setup:move|游戏id[:模式]> [秒数]` 用视频当假摄像头启动并截图（需 playwright-core，见脚本头）；`node tools/test_phone.cjs <视频> [rtc|jpeg]` 用本机 Chrome 模拟手机联调；`node tools/test_web.cjs <视频|none> [mobile|desktop] <目标> [秒数]` 托管 dist/ 测网页版（none = 没有摄像头，配合 `ACT=mouse|keys|touch` 测兜底操作）。新增提示语后运行 `node tools/motion_voice.mjs` 生成录音。
+
 ## npm scripts
 
 | 命令 | 作用 |
@@ -43,6 +78,8 @@
 | `npm run deploy:init` | 首次部署前创建 Pages 项目 |
 | `npm run build` | 只构建 `dist/` |
 | `npm run preview` | 本地预览 `dist/` |
+| `npm run serve:https` | 构建后用本地 https 托管 `dist/`（局域网可访问，终端打印二维码），手机扫码就能测网页版体感（摄像头 / 麦克风需要 https）；第一次提示证书不安全时点「高级 → 继续访问」 |
+| `npm run serve:https:src` | 同上，但直接托管源码目录，改完刷新即可，不用构建；`--port=9443` 可换端口 |
 | `npm test` | 在无头浏览器里自动通关每种玩法（学前 / 二年级 / 四年级） |
 | `npm run test:grade -- <年级> [玩法,...]` | 只测指定年级和玩法 |
 | `npm run voice` | 修改题库后补生成语音 |
@@ -87,5 +124,6 @@
 - 背景音乐：OpenGameArt CC0，作者 tinyworlds、neonarkade、lushogames、controllerhead、rd、cynicmusic（Battle Theme A / Town Theme RPG / Crystal Cave）、Zane Little Music（Pixel Sprinter / Detour）。按场景分配：主地图、各区域、Boss 战、商店、家园、探索、大游戏、卡丁车各用不同的曲子，响度统一拉平。
 - 音效：答对 / 金币 / 星星 / 通关 / 大胜利 / 升级由 `npm run sfx`（`tools/gen_sfx.mjs`）合成，其余来自 Kenney。
 - 引擎：three.js（MIT，含 GLTFLoader / SkeletonUtils）、Matter.js（MIT）。
+- 体感版：Electron（MIT）、MediaPipe Tasks Vision 与 Pose / Hand Landmarker 模型（Apache-2.0）、Vosk 与 vosk-model-small-cn / en-us（Apache-2.0）、ws、selfsigned、qrcode（MIT）。
 - 字体（SIL OFL）：站酷快乐体、马善政楷书、龙藏体、Fredoka、Gaegu、Fusion Pixel。
 - 语音：Microsoft Edge 神经网络语音（预生成）。

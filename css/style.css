@@ -819,7 +819,7 @@ body[data-theme="kid"] .apage { border: 3px solid #2b3a67; }
 .songs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
 .guide { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; min-height: 40px; font-size: 16px; }
 .guide i { font-style: normal; padding: 4px 8px; border-radius: 10px; background: var(--panel2); } .guide i.done { opacity: .35; } .guide i.cur { background: var(--accent2); color: #2b3a67; transform: scale(1.2); }
-.keys { flex: 1; display: flex; gap: 8px; width: 100%; max-width: 900px; max-height: 360px; }
+.keys { flex: 1; display: flex; gap: 8px; width: 100%; max-width: 900px; max-height: 360px; min-height: 0; touch-action: none; }
 .key { flex: 1; border-radius: 0 0 20px 20px; background: linear-gradient(180deg, #fff 70%, color-mix(in srgb, var(--kc) 40%, #fff)); box-shadow: 0 8px 0 var(--kc), var(--shadow); display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding-bottom: 18px; gap: 4px; transition: transform .08s; color: #2b3a67; border-top: 10px solid var(--kc); }
 .key .kn { font-size: 22px; font-weight: 700; } .key .kl { font-size: 16px; opacity: .6; }
 .key.down { transform: translateY(6px); box-shadow: 0 2px 0 var(--kc); }
@@ -828,10 +828,34 @@ body[data-theme="kid"] .apage { border: 3px solid #2b3a67; }
 .dc { width: 32px; height: 32px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(0,0,0,.15); } .dc.on, .dst.on, .dsz.on { outline: 3px solid var(--accent); outline-offset: 2px; }
 .dsz { width: 34px; height: 34px; border-radius: 50%; background: var(--panel2); } .dst { width: 38px; height: 38px; border-radius: 10px; background: var(--panel2); } .dst .emo { width: 28px; height: 28px; }
 .sep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
-.dcanvas { flex: 1; width: 100%; max-width: 1000px; border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); touch-action: none; cursor: crosshair; min-height: 200px; }
+.dcanvas { flex: 1 1 0; height: 0; width: 100%; max-width: 1000px; border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); touch-action: none; cursor: crosshair; min-height: 200px; }
 .dcanvas.erasing { cursor: cell; }
-.ptabs { flex-wrap: wrap; gap: 8px; }
+/* 标签 / 曲目 / 跟弹提示放不下时排成一行横向滑动，不再一行行往下挤，把钢琴键和画布顶出屏幕 */
+.ptabs, .guide, .hscroll { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; justify-content: safe center; max-width: 100%; overscroll-behavior-x: contain; scrollbar-width: none; }
+.ptabs::-webkit-scrollbar, .guide::-webkit-scrollbar, .hscroll::-webkit-scrollbar { display: none; }
+.ptabs > *, .guide > *, .hscroll > * { flex: none; white-space: nowrap; }
+.ptabs { gap: 8px; padding-top: 4px; }
+.guide { width: 100%; align-items: center; padding: 6px 12px; }
 .ptabs .btn { position: relative; }
+@media (max-width: 1100px) { .ptabs .btn { font-size: 16px; padding: 10px 16px; } }
+@media (max-width: 600px), (max-height: 600px) {
+  .ptabs { padding: 2px 12px 8px; gap: 6px; } .ptabs .btn { font-size: 15px; padding: 8px 14px; }
+  .pbox { padding: 0 12px 10px; gap: 8px; }
+  .songs { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; justify-content: safe center; width: 100%; padding: 2px 0; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .songs::-webkit-scrollbar { display: none; } .songs > * { flex: none; white-space: nowrap; }
+  .songs .chip { font-size: 14px; padding: 6px 12px; }
+  .guide { min-height: 34px; font-size: 15px; }
+  .keys { gap: 5px; } .key { border-radius: 0 0 14px 14px; padding-bottom: 10px; border-top-width: 8px; } .key .kn { font-size: 18px; } .key .kl { font-size: 14px; }
+  .pbox .fwrap, .pbox .dcanvas { min-height: 140px; }
+}
+@media (orientation: portrait) { .keys { max-height: min(520px, 62vh); } }
+/* 矮屏（手机横屏）：工具条也排成一行横滑，画布才有高度 */
+@media (max-height: 600px) {
+  .pbox .dtools { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; justify-content: safe center; max-width: 100%; padding: 6px; border-radius: 16px; scrollbar-width: none; overscroll-behavior-x: contain; flex: none; }
+  .pbox .dtools::-webkit-scrollbar { display: none; } .pbox .dtools > * { flex: none; }
+  .ftb { height: 34px; } .ftb .emo { width: 22px; height: 22px; }
+  .dc, .dsz { width: 30px; height: 30px; } .dst { width: 34px; height: 34px; } .dst .emo { width: 24px; height: 24px; }
+}
 .ptabs .btn.lock { opacity: .62; filter: grayscale(.6); }
 .ptabs .btn.lock small { margin-left: 4px; font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(0,0,0,.12); }
 /* 自由玩耍空间 */
