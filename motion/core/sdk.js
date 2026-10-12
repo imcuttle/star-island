@@ -201,6 +201,12 @@
     const p = U.h('div', 'mg-pop ' + String(cls || '').split(/\s+/).filter(Boolean).map(c => 'pp-' + c).join(' '), text); const box = this.el.querySelector('.mg-pops');
     if (x != null) { p.style.left = x + 'px'; p.style.top = y + 'px'; p.classList.add('pp-at'); }
     box.appendChild(p); setTimeout(() => p.remove(), 1100);
+    // 不出屏：按实际宽高把中心点收回屏幕里（小屏上长句子也看得全）
+    const W = box.clientWidth || innerWidth, H = box.clientHeight || innerHeight, w = p.offsetWidth, h = p.offsetHeight;
+    if (w > W - 16) p.style.fontSize = Math.max(16, parseFloat(getComputedStyle(p).fontSize) * (W - 16) / w) + 'px';
+    const cx = x != null ? x : W / 2, cy = y != null ? y : H * .38, hw = Math.min(w, W - 16) / 2;
+    if (cx - hw < 8 || cx + hw > W - 8) p.style.left = U.clamp(cx, hw + 8, W - hw - 8) + 'px';
+    if (cy - h / 2 < 8 || cy + h / 2 > H - 8) p.style.top = U.clamp(cy, h / 2 + 8, H - h / 2 - 8) + 'px';
   };
   // 大提示（动作图标 + 文字），例：酷跑里的「出拳 PUNCH」
   SP.cue = function (icon, text, ms) {
@@ -213,7 +219,8 @@
   SP.drawPip = function (t) {
     const cv = this.pipCv, mode = M.cfg.pip; if (mode === 'off' || this.pipW.style.display === 'none') return;
     const v = M.Input.video, ps = this.people(), d = Math.min(2, devicePixelRatio || 1);
-    const w = mode === 'camera' ? 220 : 170, h = mode === 'camera' ? (v && M.Input.vw ? Math.round(w * M.Input.vh / M.Input.vw) : 124) : 210;
+    const ks = U.clamp(Math.min(innerHeight / 760, innerWidth / 1280), .6, 1); // 小屏上小一点，别挡游戏
+    const w = Math.round((mode === 'camera' ? 220 : 170) * ks), h = mode === 'camera' ? (v && M.Input.vw ? Math.round(w * M.Input.vh / M.Input.vw) : Math.round(124 * ks)) : Math.round(210 * ks);
     if (cv.width !== Math.round(w * d) || cv.height !== Math.round(h * d)) { cv.width = Math.round(w * d); cv.height = Math.round(h * d); cv.style.width = w + 'px'; cv.style.height = h + 'px'; }
     const x = cv.getContext('2d'), W = cv.width, H = cv.height; x.clearRect(0, 0, W, H);
     this.pipW.classList.toggle('lost', !ps.length);
@@ -272,7 +279,7 @@
       '<div class="mg-imeta">' + (subj && !d.noQuiz ? '<span>' + U.E(subj.icon) + ' ' + subj.name + '</span>' : '') + (d.modes ? '<span>' + U.E('🎮') + ' ' + U.esc((d.modes.find(m => m.id === this.mode) || {}).name || '') + '</span>' : '') + (this.players > 1 ? '<span>' + U.E('👫') + ' 双人</span>' : '') + '</div>' +
       '<div class="mg-istart"><div class="mg-hup"><div class="mg-hupfig"><canvas data-move="handsUp"></canvas></div><div><b>举起双手开始</b><div class="mg-hupbar"><i></i></div></div></div><button class="btn big go">开始</button></div>' +
       '<div class="mg-iwarn"></div></div>';
-    this.el.appendChild(el); Core.hydrate(el);
+    this.el.appendChild(el); Core.hydrate(el); M.UI.fit(el.querySelector('.mg-ibox'));
     const stopP = M.Puppet ? M.Puppet.mountAll(el) : () => {};
     this.say(d.name).then(() => { if (d.sayHow && el.isConnected) this.say(d.sayHow); });
     M.Cursor.setMode('on');
@@ -326,7 +333,7 @@
     const el = U.h('div', 'm-layer top mg-pausel' + (menu ? '' : ' mg-lost'));
     el.innerHTML = menu ? '<div class="mg-pbox"><h2>' + U.E('⏸️') + ' 暂停中</h2><div class="mg-pbtns"><button class="btn big go m-resume">' + U.E('▶️') + ' 继续</button><button class="btn m-restart">' + U.E('🔁') + ' 重新开始</button><button class="btn ghost m-quit">' + U.E('🚪') + ' 退出</button></div><p>举起手用光标点按钮，也可以说「继续」</p></div>'
       : '<div class="mg-pbox"><div class="mg-lostfig"><canvas data-move="wave"></canvas></div><h2>咦，你去哪儿啦？</h2><b>回到画面里就继续</b><div class="mg-pbtns"><button class="btn ghost m-quit">' + U.E('🚪') + ' 退出</button></div></div>';
-    this.el.appendChild(el); Core.hydrate(el); this._pl = el; this._plStop = M.Puppet ? M.Puppet.mountAll(el) : null;
+    this.el.appendChild(el); Core.hydrate(el); M.UI.fit(el.querySelector('.mg-pbox')); this._pl = el; this._plStop = M.Puppet ? M.Puppet.mountAll(el) : null;
     const q = s => el.querySelector(s);
     if (q('.m-resume')) q('.m-resume').onclick = () => this.resume();
     if (q('.m-restart')) q('.m-restart').onclick = () => this.restart();
@@ -365,7 +372,7 @@
       '<div class="mg-rnum"><b>' + score + '</b><small>分' + (best.isBest && score > 0 ? ' · 新纪录！' : ' · 最高 ' + best.best) + '</small></div>' +
       '<div class="mg-rrows">' + (total ? '<div>' + U.E('✅') + ' 答对 <b>' + correct + '/' + total + '</b></div>' : '') + (r.lines || []).map(l => '<div>' + l + '</div>').join('') + '<div>' + U.E('🪙') + ' 金币 <b>+' + coins + '</b></div><div>' + U.E('✨') + ' 经验 <b>+' + xp + '</b></div></div>' +
       '<div class="mg-pbtns"><button class="btn big go m-again">' + U.E('🔁') + ' 再玩一次</button><button class="btn ghost m-quit">' + U.E('🏠') + ' 返回体感乐园</button></div></div>';
-    this.el.appendChild(el); Core.hydrate(el);
+    this.el.appendChild(el); Core.hydrate(el); M.UI.fit(el.querySelector('.mg-rbox'));
     el.querySelector('.m-again').onclick = () => this.restart();
     el.querySelector('.m-quit').onclick = () => M.UI.hub();
     if (stars >= 2) { Core.UI.confetti(90); Core.Audio2.sfx('victory', .6); } else Core.Audio2.sfx(stars ? 'win' : 'fail', .5);

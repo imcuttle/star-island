@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..');
 const out = '/tmp/mg/shots';
 
 (async () => {
-  const app = await pw._electron.launch({ executablePath: require(path.join(root, 'node_modules/electron')), args: [root, '--fake-cam=/tmp/mg/fake.mjpeg'], cwd: root });
+  const app = await pw._electron.launch({ executablePath: require(path.join(root, 'node_modules/electron')), args: [root].concat(process.env.HEADED ? [] : ['--hidden'], ['--fake-cam=/tmp/mg/fake.mjpeg']), cwd: root });
   const host = await app.firstWindow();
   host.on('pageerror', e => console.log('[host pageerror]', e.message));
   host.on('console', m => { if (/phone|rtc|JPEG/i.test(m.text())) console.log('[host]', m.text().slice(0, 200)); });
@@ -22,7 +22,8 @@ const out = '/tmp/mg/shots';
   const info = await host.evaluate(() => StarNative.info());
   const url = info.phoneUrls[0].replace(/https:\/\/[^:]+:/, 'https://127.0.0.1:');
   console.log('[test] phone url', url);
-  const br = await pw.chromium.launch({ channel: 'chrome', headless: false, args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--use-file-for-fake-video-capture=' + cam, '--ignore-certificate-errors', '--window-size=420,860'] });
+  const br = await pw.chromium.launch({ channel: 'chrome', headless: !process.env.HEADED, // 默认不弹窗口；HEADED=1 显示浏览器
+    args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--use-file-for-fake-video-capture=' + cam, '--ignore-certificate-errors', '--window-size=420,860'] });
   const ctx = await br.newContext({ ignoreHTTPSErrors: true, viewport: { width: 400, height: 820 }, permissions: ['camera', 'microphone'] });
   const ph = await ctx.newPage();
   ph.on('console', m => console.log('[phone]', m.text().slice(0, 200)));

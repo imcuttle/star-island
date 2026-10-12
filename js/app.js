@@ -227,7 +227,7 @@
   function enter(isNew) {
     const p = P(); applyTheme(); decayPet(p); ensureDaily(p); save(); prepHeroShots(p);
     // 主地图完全显示出来以后再弹故事 / 签到
-    hub().then(() => { checkLock(); if (lockM) return; setTimeout(isNew ? story : signIn, 300); });
+    hub().then(() => { checkLock(); if (lockM) return; setTimeout(() => { if (curScreen === 'hub') (isNew ? story : signIn)(); else pendingSign = true; }, 300); }); // 已经离开主地图（比如马上进了体感游戏）就先不弹，下次回到主地图再弹
   }
   function story() {
     const m = UI.modal('<div class="story"><div class="st-pic">' + E('🐲', 'st-dragon') + '</div><div class="st-text">很久很久以前，星星岛上有十颗<b>知识宝石</b>，让岛上充满智慧的光芒。<br><br>可是，爱捣蛋的<b>糊涂龙</b>把宝石都偷走了，还派小怪兽守在十个区域！<br><br>勇敢的 <b>' + esc(P().name) + '</b>，快去闯关、打败守关怪兽，夺回宝石吧！</div><button class="btn big go">出发！</button></div>', { cls: 'wide' });
@@ -285,8 +285,9 @@
         } catch (e) { console.error(e); flatMap(W, labels); }
       } else flatMap(W, labels);
       const tip = el.querySelector('.hub-tip'); tip.innerHTML = '点一点小岛开始冒险 · 拖动可以旋转'; setTimeout(() => tip.classList.add('out'), 4500);
-    }, { music: 'happy' });
+    }, { music: 'happy' }).then(r => { if (pendingSign && !lockM) { pendingSign = false; setTimeout(() => { if (curScreen === 'hub') signIn(); }, 300); } return r; });
   }
+  let pendingSign = false;
   function flatMap(W, labels) { W.classList.add('flat'); W.innerHTML = '<div class="flatgrid">' + labels.map(l => '<div class="flatcell" data-z="' + l.id + '">' + l.html + '</div>').join('') + '</div>'; hydrate(W); W.onclick = e => { const c = e.target.closest('.flatcell'); if (c) pickZone(c.dataset.z); }; }
   function pickZone(id) {
     Audio2.sfx('select', .5);

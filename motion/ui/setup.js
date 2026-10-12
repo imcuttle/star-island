@@ -18,12 +18,12 @@
       L.querySelectorAll('.m-step').forEach((b, j) => { b.classList.toggle('on', j === idx); b.classList.toggle('done', j < idx); });
       body.innerHTML = ''; body.className = 'm-sbody s-' + STEPS[idx][0];
       PAGES[STEPS[idx][0]](body, f => cleanup.push(f));
-      Core.hydrate(body);
+      Core.hydrate(body); UI.steppers(body); body.scrollTop = 0; UI.scroller(body).place();
       L.querySelector('.m-prevb').style.visibility = idx ? '' : 'hidden';
       L.querySelector('.m-nextb').innerHTML = idx === STEPS.length - 1 ? U.E('✅') + ' 完成' : '下一步 ' + U.E('➡️');
       Core.hydrate(L.querySelector('.m-sfoot'));
     };
-    const close = () => { cleanup.splice(0).forEach(f => { try { f(); } catch (e) {} }); M.cfg.firstRun = false; M.save(); L.remove(); M.emit('setup-closed'); };
+    const close = () => { cleanup.splice(0).forEach(f => { try { f(); } catch (e) {} }); if (body._scroller) body._scroller.stop(); M.cfg.firstRun = false; M.save(); L.remove(); M.emit('setup-closed'); };
     L.querySelector('.m-x').onclick = close;
     L.querySelector('.m-prevb').onclick = () => go(idx - 1);
     L.querySelector('.m-nextb').onclick = () => idx === STEPS.length - 1 ? close() : go(idx + 1);
@@ -118,6 +118,12 @@
       ]).map((s, i) => '<div class="m-ws" style="--d:' + i * .6 + 's"><div class="m-wsa a-' + s[0] + '"><i></i><b></b></div><span>' + s[1] + '</span></div>').join('') + '</div>' +
       '<div class="m-wnote">' + (M.wechat ? U.E('⚠️') + ' 在微信里可能打不开摄像头：点右上角「…」→「在浏览器打开」<br>' : '') +
       (M.ios ? U.E('🍎') + ' iPhone / iPad 请用 Safari 打开；第一次会弹出「允许使用摄像头」，点允许。也可以「添加到主屏幕」全屏玩' : U.E('🔒') + ' 第一次会弹出「允许使用摄像头 / 麦克风」，点允许。拒绝了的话：点地址栏左边的 🔒 →「网站设置」改成允许') + '</div></div></div>';
+    const wsl = [...el.querySelectorAll('.m-ws')]; let wi = 0;
+    const wdots = U.h('div', 'm-wdots', wsl.map(() => '<i></i>').join('')); el.querySelector('.m-wsteps').after(wdots);
+    const rot = () => { wsl.forEach((s, i) => s.classList.toggle('cur', i === wi)); [...wdots.children].forEach((d, i) => d.classList.toggle('on', i === wi)); };
+    rot(); const wt = setInterval(() => { wi = (wi + 1) % wsl.length; rot(); }, 4000);
+    wdots.onclick = e => { const i = [...wdots.children].indexOf(e.target); if (i >= 0) { wi = i; rot(); } };
+    onClean(() => clearInterval(wt));
     const camSel = el.querySelector('.cam-sel'), micSel = el.querySelector('.mic-sel');
     const pv = UI.preview(el.querySelector('.m-wprev'), {});
     const fill = async () => {

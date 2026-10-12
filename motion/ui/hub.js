@@ -55,23 +55,53 @@
         '<div class="m-card-art"><canvas data-move="' + (g.demo || (g.how && g.how[0] && g.how[0][0]) || 'idle') + '" data-glow="' + (g.color || '#7ef9ff') + '"></canvas><span class="m-card-ic">' + U.E(g.icon) + '</span></div>' +
         '<div class="m-card-txt"><b>' + U.esc(g.name) + '</b><small>' + U.esc(g.short || g.desc) + '</small></div>' +
         '<div class="m-card-meta"><span class="m-tag ' + (g.tag === '复刻' ? 'rep' : 'new') + '">' + (g.tag || '原创') + '</span>' + (g.needs.voice ? '<span class="m-tag v">' + U.E('🎤') + '语音</span>' : '') + (g.needs.people > 1 || g.duo ? '<span class="m-tag d">' + U.E('👫') + '双人</span>' : '') +
-        '<span class="m-stars">' + [0, 1, 2].map(i => '<i class="' + (i < (m.stars[g.id] || 0) ? 'on' : '') + '">★</i>').join('') + '</span></div></button>').join('');
+        '<span class="m-stars">' + [0, 1, 2].map(i => '<i class="' + (i < (m.stars[g.id] || 0) ? 'on' : '') + '">★</i>').join('') + '</span></div></button>');
       el.innerHTML = '<div class="m-rotate"><i></i><b>把手机横过来玩</b></div><div class="m-bg"><i></i><i></i><i></i></div>' +
         '<div class="m-top"><button class="back" data-say="返回">' + U.E('⬅️') + '</button><div class="m-ttl">' + U.E('🕺') + '<b>体感乐园</b><small>边动边学 · 跳出屏幕的快乐</small></div><div class="m-chips"></div>' +
         '<button class="btn m-setup-b" data-key="o" data-tip="体感设置：选摄像头、连手机、测试动作和语音">' + U.E('⚙️') + ' 体感设置</button><button class="btn ghost m-fs" data-key="f" data-tip="全屏">' + U.E('🖥️') + '</button></div>' +
         '<div class="m-main"><div class="m-side"><div class="m-prev"></div><div class="m-prev-tip"></div><div class="m-howto"><div><canvas data-move="cursor"></canvas><span>举起手当光标<br>停在卡片上就会选中</span></div><div><canvas data-move="armsX"></canvas><span>游戏中双手交叉<br>就能暂停</span></div></div></div>' +
-        '<div class="m-grid">' + cards + '</div></div>';
+        '<div class="m-gridw"><button class="m-hpg prev" data-say="上一页"><i>◀</i><small>上一页</small></button><div class="m-grid"><div class="m-htrack"></div></div><button class="m-hpg next" data-say="下一页"><i>▶</i><small>下一页</small></button><div class="m-hdots"></div></div></div>';
       el.querySelector('.back').onclick = () => { M.Cursor.enable(false); App.hub(); };
       el.querySelector('.m-setup-b').onclick = () => UI.setup();
       el.querySelector('.m-fs').onclick = () => M.fullscreen();
-      el.querySelector('.m-grid').onclick = e => { const c = e.target.closest('.m-card'); if (c) UI.pick(M.gameById(c.dataset.g)); };
+      el.querySelector('.m-grid').onclick = e => { const c = e.target.closest('.m-card'); if (c && !(U.now() - (grid._swiped || 0) < 300)) UI.pick(M.gameById(c.dataset.g)); };
       const chips = el.querySelector('.m-chips'), tip = el.querySelector('.m-prev-tip');
       const upd = () => { chips.innerHTML = UI.chips(); Core.hydrate(chips); };
       upd(); const offs = [M.Input.on('change', upd), M.Input.on('audio', upd), M.Phone.on('change', upd)];
       const pv = UI.preview(el.querySelector('.m-prev'), { dim: .1 });
-      const stopP = M.Puppet.mountAll(el);
+      // 卡片按屏幕大小排成一页一页（不滚动）：放不下就分页，左右大按钮翻页（体感光标指着停一下就翻），触屏左右滑
+      const gw = el.querySelector('.m-gridw'), grid = el.querySelector('.m-grid'), track = el.querySelector('.m-htrack'), dots = el.querySelector('.m-hdots');
+      let page = 0, pages = 1, key = '', stopCards = () => {};
+      const flip = d => { if (pages < 2) return; page = (page + d + pages) % pages; markPage(); M.Synth.sfx('whoosh', .3); };
+      const markPage = () => {
+        track.style.transform = 'translateX(' + (-page * 100) + '%)';
+        track.querySelectorAll('.m-hpage').forEach((pg, i) => pg.classList.toggle('cur', i === page));
+        dots.innerHTML = pages > 1 ? Array.from({ length: pages }, (_, i) => '<i class="' + (i === page ? 'on' : '') + '"></i>').join('') : '';
+      };
+      const layout = () => {
+        if (!grid.isConnected) return;
+        const cmp = UI.compact(), gap = cmp ? 10 : 16, minW = cmp ? 148 : 176, minH = cmp ? 140 : 196, n = cards.length;
+        const fit = paged => { gw.classList.toggle('paged', paged); const r = grid.getBoundingClientRect(); return { cols: Math.max(1, Math.floor((r.width + gap) / (minW + gap))), rows: Math.max(1, Math.floor((r.height + gap) / (minH + gap))) }; };
+        let { cols, rows } = fit(false);
+        if (cols * rows < n) ({ cols, rows } = fit(true));
+        else { rows = Math.ceil(n / cols); cols = Math.ceil(n / rows); } // 一页放得下：行列尽量均匀
+        const per = Math.min(n, cols * rows); pages = Math.ceil(n / per);
+        gw.classList.toggle('paged', pages > 1);
+        const k = cols + 'x' + rows; if (k === key) return; key = k;
+        stopCards();
+        track.innerHTML = Array.from({ length: pages }, (_, i) => '<div class="m-hpage" style="gap:' + gap + 'px;grid-template-columns:repeat(' + cols + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + cards.slice(i * per, (i + 1) * per).join('') + '</div>').join('');
+        Core.hydrate(track); page = Math.min(page, pages - 1); markPage();
+        requestAnimationFrame(() => { stopCards = M.Puppet.mountAll(track); });
+      };
+      layout();
+      const ro = new ResizeObserver(() => { clearTimeout(ro._t); ro._t = setTimeout(layout, 120); }); ro.observe(grid);
+      el.querySelector('.m-hpg.prev').onclick = () => flip(-1); el.querySelector('.m-hpg.next').onclick = () => flip(1);
+      let sx = null; grid.addEventListener('pointerdown', e => { sx = e.clientX; }); grid.addEventListener('pointerup', e => { if (sx != null && Math.abs(e.clientX - sx) > 60) { flip(e.clientX < sx ? 1 : -1); grid._swiped = U.now(); } sx = null; });
+      const onKey = e => { if (document.querySelector('.m-layer.top')) return; if (e.key === 'ArrowRight' || e.key === 'PageDown') flip(1); if (e.key === 'ArrowLeft' || e.key === 'PageUp') flip(-1); };
+      addEventListener('keydown', onKey);
+      const stopP = M.Puppet.mountAll(el.querySelector('.m-side'));
       const tl = M.loop(() => { const n = M.Tracker.people.filter(p => p && p.present).length; tip.textContent = !M.Input.live() ? '摄像头未连接' : n ? '看到 ' + n + ' 个人' + (M.Tracker.fps ? ' · ' + Math.round(M.Tracker.fps) + ' 帧/秒' : '') : '站到摄像头前面，让它看见你'; });
-      Core.onLeave(() => { offs.forEach(f => f()); pv.stop(); stopP(); tl.stop(); });
+      Core.onLeave(() => { offs.forEach(f => f()); pv.stop(); stopP(); stopCards(); tl.stop(); ro.disconnect(); removeEventListener('keydown', onKey); });
       M.ensureRunning();
       Core.Voice.say('体感乐园');
     }, { music: 'happy' }).then(el => { if (M.cfg.firstRun) UI.setup(); return el; });
@@ -91,6 +121,7 @@
       (g.duo ? '<div class="m-prow"><label>人数</label><div class="m-opts" data-k="players"><button class="m-opt" data-v="1">' + U.E('🙋') + '<b>单人</b><small>和电脑比</small></button><button class="m-opt" data-v="2">' + U.E('👫') + '<b>双人对战</b><small>一左一右站</small></button></div></div>' : '') +
       '<div class="m-pgo"><button class="btn big go">' + U.E('▶️') + ' 开始</button></div></div>';
     document.querySelector('#app .screen').appendChild(L); Core.hydrate(L);
+    const box = L.querySelector('.m-pbox2'), ft = UI.fit(box), sc = UI.scroller(box);
     const mark = () => L.querySelectorAll('.m-opts').forEach(o => o.querySelectorAll('.m-opt').forEach(b => b.classList.toggle('on', String(st[o.dataset.k]) === b.dataset.v)));
     L.querySelectorAll('.m-opts').forEach(o => o.onclick = e => {
       const b = e.target.closest('.m-opt'); if (!b) return; st[o.dataset.k] = o.dataset.k === 'players' ? +b.dataset.v : b.dataset.v; mark(); M.Synth.sfx('pop', .5);
@@ -98,7 +129,7 @@
     });
     mark();
     const stopP = M.Puppet.mountAll(L);
-    const close = () => { stopP(); L.remove(); };
+    const close = () => { stopP(); ft.stop(); sc.stop(); L.remove(); };
     L.querySelector('.m-x').onclick = close;
     L.addEventListener('pointerdown', e => { if (e.target === L) close(); });
     L.querySelector('.go').onclick = () => { M.cfg.last = Object.assign({}, M.cfg.last, { [g.id]: st }); M.save(); close(); if (M.web && M.mobile) M.fullscreen(true); M.play(g.id, st); };

@@ -11,7 +11,7 @@ const root = path.resolve(__dirname, '..');
 fs.mkdirSync(out, { recursive: true });
 
 (async () => {
-  const app = await _electron.launch({ executablePath: require(path.join(root, 'node_modules/electron')), args: [root, '--fake-cam=' + cam].concat(process.env.FAKE_MIC ? ['--fake-mic=' + process.env.FAKE_MIC] : []), cwd: root, timeout: 60000 });
+  const app = await _electron.launch({ executablePath: require(path.join(root, 'node_modules/electron')), args: [root].concat(process.env.HEADED ? [] : ['--hidden'], ['--fake-cam=' + cam]).concat(process.env.FAKE_MIC ? ['--fake-mic=' + process.env.FAKE_MIC] : []), cwd: root, timeout: 60000 });
   const page = await app.firstWindow();
   page.on('console', m => { const t = m.text(); if (m.type() === 'error' || m.type() === 'warning' || /\[motion\]|\[test\]/.test(t)) console.log('[' + m.type() + ']', t.slice(0, 400)); });
   page.on('response', r => { if (r.status() >= 400) console.log('[http ' + r.status() + ']', r.url()); });

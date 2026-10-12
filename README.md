@@ -50,6 +50,7 @@ npm run electron      # 自动下载 motion/vendor（识别模型约 100MB）后
 npm run electron:dist # 打安装包到 release/（mac dmg / win nsis；默认不签名）
 ```
 
+- **手机 / 平板**：体感时人站在远处，界面按「一屏放下」设计：大厅卡片按屏幕大小分页（左右大按钮翻页，体感光标指着就翻，触屏可左右滑）；弹窗内容放不下时整体等比缩小；实在放不下的区域不显示滚动条，改为右侧「往上翻 / 往下翻」翻页轨（光标停上去自动滚，点一下翻一页）；滑块换成 − / + 按钮。切到后台或手机竖过来时游戏自动暂停；离开体感区 2 秒后关闭摄像头和麦克风；禁止下拉刷新、长按菜单、双击缩放。
 - **性能**：动作识别（MediaPipe）在后台线程（Web Worker）里跑，主线程每帧只花约 0.2ms 取帧；Worker 起不来时自动退回主线程。离线语音识别（Vosk）也在 Worker 里，麦克风采集走 AudioWorklet。被弹层盖住的示范动画、预览画面不重画。
 - **入口**：主地图底部 dock 多一个「体感」按钮（快捷键 M）。网页版和桌面版共用下面的设置向导、交互和游戏。
 - **输入**：电脑摄像头 / USB 摄像头；手机扫码当摄像头和麦克风（局域网 WebRTC 直连，连不上自动改用 JPEG 图片流兜底；只能打开 http 地址时当遥控器）；局域网 IP 摄像头 App 的 MJPEG 地址。
@@ -68,7 +69,7 @@ npm run electron:dist # 打安装包到 release/（mac dmg / win nsis；默认�
 | `motion/games/` | 各个体感游戏（`M.game({...})` 注册） |
 | `motion/phone/` | 手机输入端页面 |
 
-开发 / 测试：`node tools/test_motion.cjs <视频.mjpeg> <hub|setup:move|游戏id[:模式]> [秒数]` 用视频当假摄像头启动并截图（需 playwright-core，见脚本头）；`node tools/test_phone.cjs <视频> [rtc|jpeg]` 用本机 Chrome 模拟手机联调；`node tools/test_web.cjs <视频|none> [mobile|desktop] <目标> [秒数]` 托管 dist/ 测网页版（none = 没有摄像头，配合 `ACT=mouse|keys|touch` 测兜底操作）。新增提示语后运行 `node tools/motion_voice.mjs` 生成录音。
+开发 / 测试：`node tools/test_motion.cjs <视频.mjpeg> <hub|setup:move|游戏id[:模式]> [秒数]` 用视频当假摄像头启动并截图（需 playwright-core，见脚本头）；`node tools/test_phone.cjs <视频> [rtc|jpeg]` 用本机 Chrome 模拟手机联调；`node tools/test_web.cjs <视频|none> [mobile|desktop] <目标> [秒数]` 托管 dist/ 测网页版（none = 没有摄像头，配合 `ACT=mouse|keys|touch` 测兜底操作）；`node tools/audit_motion_ui.cjs [ui|games|life] [视口…]` 在多种手机 / 平板尺寸下体检体感界面（滚动条、出屏、裁切、小按钮、生命周期）。测试脚本默认不弹窗口，`HEADED=1` 才显示。新增提示语后运行 `node tools/motion_voice.mjs` 生成录音。
 
 ## npm scripts
 

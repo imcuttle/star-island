@@ -205,8 +205,10 @@ async function startServers() {
 /* ---------- 窗口 ---------- */
 let win = null;
 function createWindow() {
+  if (arg('hidden') && app.dock) app.dock.hide();
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 900, minHeight: 560, backgroundColor: '#5ec8ff', title: '星星岛大冒险 · 体感版', autoHideMenuBar: true,
+    show: !arg('hidden'), paintWhenInitiallyHidden: true, // 测试：--hidden 后台运行，不弹窗口
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
   });
   if (arg('fullscreen')) win.setFullScreen(true);

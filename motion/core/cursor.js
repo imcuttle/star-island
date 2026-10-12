@@ -70,7 +70,10 @@
       if (t - this._candT > 300) {
         this._candT = t;
         const root = document.querySelector('.m-layer.top') || document.querySelector('#fx .modal-bg.in') || document;
-        this._cands = [...root.querySelectorAll(SEL)].filter(e => { const r = e.getBoundingClientRect(); if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight) return false; const cs = getComputedStyle(e); return cs.visibility !== 'hidden' && cs.pointerEvents !== 'none' && !e.closest('.m-noclick'); });
+        this._cands = [...root.querySelectorAll(SEL)].filter(e => { const r = e.getBoundingClientRect(); if (!r.width || !r.height || r.bottom < 0 || r.top > innerHeight) return false;
+          const sc = e.closest('.m-scr'); if (sc) { const q = sc.getBoundingClientRect(); if (Math.min(r.bottom, q.bottom) - Math.max(r.top, q.top) < r.height * .5) return false; } // 滚动区外看不见的不算
+          if (e.closest('.m-hpage:not(.cur)')) return false; // 大厅别的页
+          const cs = getComputedStyle(e); return cs.visibility !== 'hidden' && cs.pointerEvents !== 'none' && !e.closest('.m-noclick'); });
       }
       let best = null, bd = 90;
       this._cands.forEach(e => {

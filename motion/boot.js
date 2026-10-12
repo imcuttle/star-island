@@ -5,7 +5,7 @@
   const web = !window.StarNative, ok = !web || (window.isSecureContext && /^https?:$/.test(location.protocol) && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia));
   if (!ok || window.__motionBoot) return; window.__motionBoot = true;
   const V = '?v=' + Date.now().toString(36).slice(-4);
-  const FILES = ['core/base.js', 'core/input.js', 'core/tracker.js', 'core/body.js', 'core/virtual.js', 'core/ears.js', 'core/cursor.js', 'core/synth.js', 'core/sdk.js', 'ui/puppet.js', 'ui/hub.js', 'ui/setup.js', 'voice/manifest.js',
+  const FILES = ['core/base.js', 'core/input.js', 'core/tracker.js', 'core/body.js', 'core/virtual.js', 'core/ears.js', 'core/cursor.js', 'core/synth.js', 'core/sdk.js', 'ui/puppet.js', 'ui/fit.js', 'ui/hub.js', 'ui/setup.js', 'voice/manifest.js',
     'games/beat.js', 'games/dance.js', 'games/run.js', 'games/fruit.js', 'games/wall.js', 'games/sky.js', 'games/spell.js', 'games/simon.js', 'games/kame.js'];
   const base = (document.currentScript && document.currentScript.src.replace(/boot\.js.*$/, '')) || 'motion/';
   const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = base + 'motion.css' + V; document.head.appendChild(css);

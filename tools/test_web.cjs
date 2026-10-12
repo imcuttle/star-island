@@ -23,7 +23,8 @@ async function run() {
   const lan = Object.values(os.networkInterfaces()).flat().find(a => a && a.family === 'IPv4' && !a.internal);
   // cam = none：模拟没有摄像头 / 拒绝了权限，验证键鼠 / 触屏兜底
   const noCam = cam === 'none';
-  const br = await pw.chromium.launch({ channel: 'chrome', headless: false, args: noCam ? ['--autoplay-policy=no-user-gesture-required', '--deny-permission-prompts'] : ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--use-file-for-fake-video-capture=' + cam, '--autoplay-policy=no-user-gesture-required'] });
+  const br = await pw.chromium.launch({ channel: 'chrome', headless: !process.env.HEADED, // 默认不弹窗口；HEADED=1 显示浏览器
+    args: noCam ? ['--autoplay-policy=no-user-gesture-required', '--deny-permission-prompts'] : ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--use-file-for-fake-video-capture=' + cam, '--autoplay-policy=no-user-gesture-required'] });
   const mobile = dev === 'mobile';
   const ctx = await br.newContext(mobile ? { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, permissions: noCam ? [] : ['camera', 'microphone'], userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36' } : { viewport: { width: 1280, height: 760 }, permissions: noCam ? [] : ['camera', 'microphone'] });
   const page = await ctx.newPage();
