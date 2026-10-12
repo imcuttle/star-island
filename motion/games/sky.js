@@ -274,7 +274,7 @@
   function injectCss() {
     if (document.getElementById('mg-sky-css')) return;
     const st = document.createElement('style'); st.id = 'mg-sky-css';
-    st.textContent = '.sky-pen{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 22px;border-radius:999px;background:rgba(8,12,40,.78);color:#fff;font-size:20px;font-weight:800;box-shadow:0 0 0 2px rgba(126,249,255,.55),0 0 26px rgba(126,249,255,.3);transition:box-shadow .2s,background .2s;white-space:nowrap;backdrop-filter:blur(6px)}' +
+    st.textContent = '.sky-pen{position:absolute;left:50%;bottom:calc(20px + var(--padh, 0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:8px 22px;border-radius:999px;background:rgba(8,12,40,.78);color:#fff;font-size:20px;font-weight:800;box-shadow:0 0 0 2px rgba(126,249,255,.55),0 0 26px rgba(126,249,255,.3);transition:box-shadow .2s,background .2s;white-space:nowrap;backdrop-filter:blur(6px)}' +
       '.sky-pen .emo{width:28px;height:28px}.sky-pen small{font-size:14px;font-weight:600;opacity:.72;margin-left:4px}' +
       '.sky-pen.down{box-shadow:0 0 0 2px #ffd166,0 0 34px rgba(255,209,102,.65);background:rgba(40,28,10,.8)}.sky-pen.fist{box-shadow:0 0 0 2px #ff7aa8,0 0 34px rgba(255,122,168,.6)}.sky-pen.none{opacity:.85}.sky-qe .emo{width:58px;height:58px}';
     document.head.appendChild(st);
@@ -310,6 +310,9 @@
         const W = C.W, H = C.H; L.k = Math.min(W, H * 1.7) / 1100;
         if (mode === 'draw') { const w = Math.min(W * .6, H * 1.05), h = Math.min(H * .56, w * .72); L.box = { x: (W - w) / 2, y: H * .59 - h / 2, w, h }; }
         else { const s = mode === 'trace' ? Math.min(H * .56, W * .42) : Math.min(H * .5, W * .3); L.box = { x: (W - s) / 2, y: H * .59 - s / 2, w: s, h: s }; }
+        // 矮屏：画板别钻到底部「抬笔 / 落笔」提示条（和触屏按钮条）下面，放不下就等比缩小
+        const pen = G.hudEl.querySelector('.sky-pen'), bot = H - Math.max(46, (pen && pen.offsetHeight) || 0) - 20 - G.safeB() - 10, top = H * .32; // 上面留给题卡
+        if (L.box.y + L.box.h > bot) { const k = Math.min(1, (bot - top) / L.box.h), w = L.box.w * k, h = L.box.h * k; L.box = { x: (W - w) / 2, y: Math.max(top, bot - h), w, h }; }
         L.cx = L.box.x + L.box.w / 2; L.cy = L.box.y + L.box.h / 2;
         drawBg();
         inkCv.width = bg.width; inkCv.height = bg.height; ink.setTransform(C.dpr, 0, 0, C.dpr, 0, 0); inkRedraw();

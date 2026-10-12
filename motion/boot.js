@@ -17,7 +17,7 @@
 
     // 按配置打开输入（大厅 / 设置页进来时调用；已经开着就不动）
     let starting = null; const v0 = () => M.cfg.video;
-    M.ensureRunning = () => starting || (starting = (async () => {
+    M.ensureRunning = () => starting || (starting = (async () => { try {
       M.Phone.init();
       if (!M.Input.live() && M.Input.status !== 'starting') {
         const v = M.web && v0().kind !== 'cam' ? { kind: 'cam', id: '' } : v0();
@@ -29,8 +29,7 @@
       if (M.Input.audioStream && !M.Ears.stream) M.Ears.attach(M.Input.audioStream);
       M.Input.on('audio', () => { if (M.Input.audioStream && M.Ears.stream !== M.Input.audioStream) M.Ears.attach(M.Input.audioStream); });
       await M.Tracker.configure({}); M.Tracker.start();
-      starting = null;
-    })());
+    } finally { starting = null; } })()); // 出错了也要放开，下次还能再试
     // 记住的手机重新连上时自动切回手机画面
     if (M.native) M.Phone.on('join', p => { if (M.cfg.video.kind === 'phone' && p.name === M.cfg.phoneName && !(M.Input.src && M.Input.src.kind === 'phone')) setTimeout(() => M.Input.start({ kind: 'phone', id: p.id }), 600); });
     // 手机遥控器：方向键 / 确定 / 返回 当作键盘

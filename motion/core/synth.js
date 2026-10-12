@@ -1,6 +1,9 @@
 /* 合成音乐与音效（Web Audio，零素材）：节奏游戏需要和节拍严格同步的音乐，所以现场合成
    M.Synth.song({ bpm, style }) → { start(), stop(), beat()（从开始算的拍数，含小数）, onBeat(fn) }
-   M.Synth.sfx(name)：slice / splat / hit / perfect / good / miss / boom / whoosh / punch / zap / pop / chime / count / go / combo / wall / coin / wrong / magic */
+   M.Synth.sfx(name, vol, pitch)：slice / splat / hit / perfect / good / miss / boom / whoosh / punch / zap / pop / chime / count / go / combo / wall / coin / wrong / magic
+     怪兽和道具：roar 怪兽吼 / groan 僵尸哼 / ghost 幽灵呜 / poof 吓跑 / flap 蝙蝠扑翅 / rumble 滚石轰隆 / fire 火球 / alarm 警报 / power 拿到道具 / shield 护盾挡住 / fever 狂热 / step 脚步
+     pitch：半音偏移（连续吃金币越吃越高）
+   M.Synth.wind()：随速度变化的风声（{ set(0-1), stop() }） */
 (function () {
   const M = window.Motion, U = M.U;
   const S = M.Synth = {};
@@ -103,11 +106,34 @@
     return api;
   };
 
+  // 风声：一直循环的噪声，跑得越快越响、越尖
+  S.wind = function () {
+    ac(); const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = noiseBuf; src.loop = true; f.type = 'bandpass'; f.frequency.value = 400; f.Q.value = .5; g.gain.value = 0;
+    src.connect(f); f.connect(g); g.connect(sfxBus); src.start();
+    return {
+      set(k) { const t = ctx.currentTime; k = Math.max(0, Math.min(1.5, k)); g.gain.setTargetAtTime(k * .1, t, .25); f.frequency.setTargetAtTime(280 + k * 1500, t, .25); },
+      stop() { g.gain.setTargetAtTime(0, ctx.currentTime, .08); setTimeout(() => { try { src.stop(); src.disconnect(); } catch (e) {} }, 500); },
+    };
+  };
+
   /* ---------- 音效 ---------- */
-  S.sfx = function (name, vol) {
+  S.sfx = function (name, vol, pitch) {
     ac(); vols(); if (ctx.state !== 'running') ctx.resume().catch(() => {});
-    const t = ctx.currentTime + .005, d = sfxBus, v = vol == null ? 1 : vol;
+    const t = ctx.currentTime + .005, d = sfxBus, v = vol == null ? 1 : vol, k = pitch || 0;
     switch (name) {
+      case 'roar': osc('sawtooth', 120, t, 1.1, .45 * v, d, { to: 52, glide: 1, lp: 1100, lpTo: 260, a: .06, sus: .3 }); osc('sawtooth', 127, t, 1.1, .3 * v, d, { to: 55, glide: 1, lp: 800, a: .08 }); noise(t, 1.1, .45 * v, d, { type: 'bandpass', f: 700, fTo: 180, q: .8, a: .1 }); break;
+      case 'groan': osc('sawtooth', 160, t, .75, .1 * v, d, { to: 92, glide: .7, lp: 650, a: .12, sus: .06 }); break;
+      case 'ghost': osc('sine', 540, t, 1, .11 * v, d, { to: 360, glide: .9, a: .25, sus: .08 }); osc('sine', 548, t + .04, 1, .07 * v, d, { to: 366, glide: .9, a: .3 }); break;
+      case 'poof': noise(t, .32, .32 * v, d, { type: 'highpass', f: 1800, fTo: 9000 }); osc('sine', 700, t, .22, .12 * v, d, { to: 2100, glide: .2 }); break;
+      case 'flap': for (let i = 0; i < 6; i++) noise(t + i * .055, .045, .22 * v, d, { type: 'bandpass', f: 650 + i * 70, q: 2.2 }); break;
+      case 'rumble': noise(t, 1.3, .6 * v, d, { type: 'lowpass', f: 260, fTo: 110, q: .9, a: .25 }); osc('sine', 46, t, 1.3, .45 * v, d, { a: .3, sus: .3 }); break;
+      case 'fire': noise(t, .55, .42 * v, d, { type: 'lowpass', f: 2200, fTo: 260, a: .04 }); osc('sawtooth', 240, t, .45, .07 * v, d, { to: 85, lp: 1300 }); break;
+      case 'alarm': for (let i = 0; i < 4; i++) osc('square', i % 2 ? 620 : 880, t + i * .24, .22, .08 * v, d, { lp: 3200, sus: .07 }); break;
+      case 'power': for (let i = 0; i < 6; i++) osc('square', NOTE(72 + [0, 4, 7, 12, 16, 19][i]), t + i * .045, .12, .07 * v, d, { lp: 5200 }); osc('sine', 400, t, .4, .1 * v, d, { to: 1600, glide: .35 }); break;
+      case 'shield': osc('triangle', 880, t, .45, .16 * v, d, { to: 1760, glide: .3 }); osc('sine', 1320, t + .05, .5, .08 * v, d); noise(t, .2, .15 * v, d, { type: 'highpass', f: 5000 }); break;
+      case 'fever': for (let i = 0; i < 10; i++) osc(i % 2 ? 'square' : 'triangle', NOTE(67 + [0, 4, 7, 12, 16, 19, 24, 19, 24, 28][i]), t + i * .05, .14, .07 * v, d, { lp: 6000 }); for (let i = 0; i < 5; i++) noise(t + .2 + i * .05, .5, .06 * v, d, { type: 'bandpass', f: 1000 + Math.random() * 1500, q: 1.5, a: .05 }); break;
+      case 'step': osc('sine', 88, t, .07, .2 * v, d, { to: 52, a: .002, d: .04, sus: .02, r: .04 }); noise(t, .04, .07 * v, d, { type: 'lowpass', f: 1000 }); break;
       case 'slice': noise(t, .16, .5 * v, d, { type: 'bandpass', f: 1200, fTo: 6000, q: 1.5 }); osc('sawtooth', 900, t, .08, .06 * v, d, { to: 2400, lp: 5000 }); break;
       case 'splat': noise(t, .22, .55 * v, d, { type: 'lowpass', f: 1400, fTo: 200, q: 2 }); osc('sine', 260, t, .14, .3 * v, d, { to: 80 }); break;
       case 'hit': noise(t, .09, .5 * v, d, { type: 'bandpass', f: 2600, q: .8 }); osc('square', 520, t, .07, .12 * v, d, { to: 260, lp: 3000 }); break;
@@ -125,7 +151,7 @@
       case 'go': osc('square', 990, t, .3, .14 * v, d, { lp: 4000 }); osc('square', 1320, t + .02, .3, .08 * v, d, { lp: 4000 }); break;
       case 'combo': [0, 5, 9, 12, 16].forEach((n, i) => osc('square', NOTE(79 + n), t + i * .035, .1, .06 * v, d, { lp: 5000 })); break;
       case 'wall': osc('sawtooth', 70, t, .5, .3 * v, d, { to: 45, lp: 400 }); noise(t, .4, .3 * v, d, { type: 'lowpass', f: 500 }); break;
-      case 'coin': osc('square', NOTE(88), t, .06, .08 * v, d, { lp: 6000 }); osc('square', NOTE(95), t + .06, .18, .08 * v, d, { lp: 6000 }); break;
+      case 'coin': osc('square', NOTE(88 + k), t, .06, .08 * v, d, { lp: 6000 }); osc('square', NOTE(95 + k), t + .06, .18, .08 * v, d, { lp: 6000 }); break;
       case 'magic': for (let i = 0; i < 8; i++) osc('sine', NOTE(84 + [0, 4, 7, 11, 12, 16, 19, 24][i]), t + i * .04, .25, .06 * v, d); break;
       case 'jump': osc('square', 300, t, .16, .1 * v, d, { to: 700, glide: .12, lp: 3000 }); break;
       case 'land': osc('sine', 120, t, .12, .4 * v, d, { to: 60 }); break;

@@ -47,7 +47,14 @@
 
   /* ---------- 大厅 ---------- */
   UI.hub = function () {
-    M.Cursor.enable(true); M.Cursor.setMode('on');
+    // 先停在当前画面把摄像头和识别模型准备好（中间是加载进度），进了大厅马上就能用手操作
+    return M.warm('正在进入体感乐园').then(w => {
+      if (!w) return;
+      M.Cursor.enable(true); M.Cursor.setMode('on');
+      const p = hubShow(); w.done(); return p;
+    });
+  };
+  const hubShow = () => {
     return App.show('motion', el => {
       el.classList.add('m-hub');
       const m = M.Store.get();
@@ -57,19 +64,18 @@
         '<div class="m-card-meta"><span class="m-tag ' + (g.tag === '复刻' ? 'rep' : 'new') + '">' + (g.tag || '原创') + '</span>' + (g.needs.voice ? '<span class="m-tag v">' + U.E('🎤') + '语音</span>' : '') + (g.needs.people > 1 || g.duo ? '<span class="m-tag d">' + U.E('👫') + '双人</span>' : '') +
         '<span class="m-stars">' + [0, 1, 2].map(i => '<i class="' + (i < (m.stars[g.id] || 0) ? 'on' : '') + '">★</i>').join('') + '</span></div></button>');
       el.innerHTML = '<div class="m-rotate"><i></i><b>把手机横过来玩</b></div><div class="m-bg"><i></i><i></i><i></i></div>' +
-        '<div class="m-top"><button class="back" data-say="返回">' + U.E('⬅️') + '</button><div class="m-ttl">' + U.E('🕺') + '<b>体感乐园</b><small>边动边学 · 跳出屏幕的快乐</small></div><div class="m-chips"></div>' +
+        '<div class="m-top"><button class="back" data-say="返回">' + U.E('⬅️') + '</button><div class="m-ttl">' + U.E('🕺') + '<b>体感乐园</b><small>边动边学 · 跳出屏幕的快乐</small></div><span class="m-chip m-seen"></span><div class="m-chips"></div>' +
         '<button class="btn m-setup-b" data-key="o" data-tip="体感设置：选摄像头、连手机、测试动作和语音">' + U.E('⚙️') + ' 体感设置</button>' + (M.web ? '<button class="btn ghost m-cast-b" data-tip="投屏到电视：全屏、横屏、电视没有黑边">' + U.E('📺') + '<span> 投屏</span></button>' : '') + '<button class="btn ghost m-fs" data-key="f" data-tip="全屏">' + U.E('🖥️') + '</button></div>' +
-        '<div class="m-main"><div class="m-side"><div class="m-prev"></div><div class="m-prev-tip"></div><div class="m-howto"><div><canvas data-move="cursor"></canvas><span>举起手当光标<br>停在卡片上就会选中</span></div><div><canvas data-move="armsX"></canvas><span>游戏中双手交叉<br>就能暂停</span></div></div></div>' +
-        '<div class="m-gridw"><button class="m-hpg prev" data-say="上一页"><i>◀</i><small>上一页</small></button><div class="m-grid"><div class="m-htrack"></div></div><button class="m-hpg next" data-say="下一页"><i>▶</i><small>下一页</small></button><div class="m-hdots"></div></div></div>';
+        // 摄像头画面只在「体感设置」里调；大厅只留顶栏的识别状态
+      '<div class="m-main"><div class="m-gridw"><button class="m-hpg prev" data-say="上一页"><i>◀</i><small>上一页</small></button><div class="m-grid"><div class="m-htrack"></div></div><button class="m-hpg next" data-say="下一页"><i>▶</i><small>下一页</small></button><div class="m-hdots"></div></div></div>';
       el.querySelector('.back').onclick = () => { M.Cursor.enable(false); App.hub(); };
       el.querySelector('.m-setup-b').onclick = () => UI.setup();
       el.querySelector('.m-fs').onclick = () => M.fullscreen();
       const cb = el.querySelector('.m-cast-b'); if (cb) cb.onclick = () => UI.cast();
       el.querySelector('.m-grid').onclick = e => { const c = e.target.closest('.m-card'); if (c && !(U.now() - (grid._swiped || 0) < 300)) UI.pick(M.gameById(c.dataset.g)); };
-      const chips = el.querySelector('.m-chips'), tip = el.querySelector('.m-prev-tip');
+      const chips = el.querySelector('.m-chips'), tip = el.querySelector('.m-seen');
       const upd = () => { chips.innerHTML = UI.chips(); Core.hydrate(chips); };
       upd(); const offs = [M.Input.on('change', upd), M.Input.on('audio', upd), M.Phone.on('change', upd)];
-      const pv = UI.preview(el.querySelector('.m-prev'), { dim: .1 });
       // 卡片按屏幕大小排成一页一页（不滚动）：放不下就分页，左右大按钮翻页（体感光标指着停一下就翻），触屏左右滑
       const gw = el.querySelector('.m-gridw'), grid = el.querySelector('.m-grid'), track = el.querySelector('.m-htrack'), dots = el.querySelector('.m-hdots');
       let page = 0, pages = 1, key = '', stopCards = () => {};
@@ -81,7 +87,7 @@
       };
       const layout = () => {
         if (!grid.isConnected) return;
-        const cmp = UI.compact(), gap = cmp ? 10 : 16, minW = cmp ? 148 : 176, minH = cmp ? 140 : 196, n = cards.length;
+        const cmp = UI.compact(), gap = cmp ? 10 : 16, minW = cmp ? 132 : 176, minH = cmp ? 112 : 196, maxH = cmp ? 168 : 250, n = cards.length;
         const fit = paged => { gw.classList.toggle('paged', paged); const r = grid.getBoundingClientRect(); return { cols: Math.max(1, Math.floor((r.width + gap) / (minW + gap))), rows: Math.max(1, Math.floor((r.height + gap) / (minH + gap))) }; };
         let { cols, rows } = fit(false);
         if (cols * rows < n) ({ cols, rows } = fit(true));
@@ -90,7 +96,7 @@
         gw.classList.toggle('paged', pages > 1);
         const k = cols + 'x' + rows; if (k === key) return; key = k;
         stopCards();
-        track.innerHTML = Array.from({ length: pages }, (_, i) => '<div class="m-hpage" style="gap:' + gap + 'px;grid-template-columns:repeat(' + cols + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + cards.slice(i * per, (i + 1) * per).join('') + '</div>').join('');
+        track.innerHTML = Array.from({ length: pages }, (_, i) => '<div class="m-hpage" style="gap:' + gap + 'px;grid-template-columns:repeat(' + cols + ',1fr);grid-template-rows:repeat(' + rows + ',minmax(0,' + maxH + 'px))">' + cards.slice(i * per, (i + 1) * per).join('') + '</div>').join('');
         Core.hydrate(track); page = Math.min(page, pages - 1); markPage();
         requestAnimationFrame(() => { stopCards = M.Puppet.mountAll(track); });
       };
@@ -100,9 +106,14 @@
       let sx = null; grid.addEventListener('pointerdown', e => { sx = e.clientX; }); grid.addEventListener('pointerup', e => { if (sx != null && Math.abs(e.clientX - sx) > 60) { flip(e.clientX < sx ? 1 : -1); grid._swiped = U.now(); } sx = null; });
       const onKey = e => { if (document.querySelector('.m-layer.top')) return; if (e.key === 'ArrowRight' || e.key === 'PageDown') flip(1); if (e.key === 'ArrowLeft' || e.key === 'PageUp') flip(-1); };
       addEventListener('keydown', onKey);
-      const stopP = M.Puppet.mountAll(el.querySelector('.m-side'));
-      const tl = M.loop(() => { const n = M.Tracker.people.filter(p => p && p.present).length; tip.textContent = !M.Input.live() ? '摄像头未连接' : n ? '看到 ' + n + ' 个人' + (M.Tracker.fps ? ' · ' + Math.round(M.Tracker.fps) + ' 帧/秒' : '') : '站到摄像头前面，让它看见你'; });
-      Core.onLeave(() => { offs.forEach(f => f()); pv.stop(); stopP(); stopCards(); tl.stop(); ro.disconnect(); removeEventListener('keydown', onKey); });
+      let tipT = 0;
+      const tl = M.loop((dt, t) => {
+        if (t - tipT < 400) return; tipT = t;
+        const n = M.Tracker.people.filter(p => p && p.present).length, live = M.Input.live();
+        const s = !live ? (M.Input.status === 'starting' ? '正在打开摄像头…' : '摄像头未连接') : !M.Tracker.ready ? '正在准备动作识别…' : n ? '看到 ' + n + ' 个人' : '站到摄像头前面，让它看见你';
+        if (tip._s !== s) { tip._s = s; tip.className = 'm-chip m-seen ' + (!live ? 'bad' : n ? 'ok' : 'wait'); tip.innerHTML = U.E(n ? '🙋' : '📷') + U.esc(s); Core.hydrate(tip); }
+      });
+      Core.onLeave(() => { offs.forEach(f => f()); stopCards(); tl.stop(); ro.disconnect(); removeEventListener('keydown', onKey); });
       M.ensureRunning();
       Core.Voice.say('体感乐园');
     }, { music: 'happy' }).then(el => { if (M.cfg.firstRun) UI.setup(); return el; });

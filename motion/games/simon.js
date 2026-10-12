@@ -63,7 +63,7 @@
     if (document.getElementById('mg-simon-css')) return;
     const s = document.createElement('style'); s.id = 'mg-simon-css';
     s.textContent = `
-.mg-simon .sm-card { position: absolute; left: 50%; top: calc(78px + env(safe-area-inset-top)); transform: translate(-50%, -40px) scale(.7); opacity: 0; transition: transform .38s cubic-bezier(.2,1.5,.4,1), opacity .25s; display: flex; align-items: center; gap: 18px; padding: 12px 26px 12px 14px; border-radius: 30px; background: linear-gradient(180deg, #ffffff, #fff3d1); color: #2a2350; box-shadow: 0 8px 0 rgba(90,50,0,.25), 0 0 0 6px #ffd166, 0 0 0 10px rgba(255,255,255,.35), 0 18px 50px rgba(0,0,0,.45); max-width: 86vw; }
+.mg-simon .sm-card { position: absolute; left: 50%; top: calc(78px + var(--mst)); transform: translate(-50%, -40px) scale(.7); opacity: 0; transition: transform .38s cubic-bezier(.2,1.5,.4,1), opacity .25s; display: flex; align-items: center; gap: 18px; padding: 12px 26px 12px 14px; border-radius: 30px; background: linear-gradient(180deg, #ffffff, #fff3d1); color: #2a2350; box-shadow: 0 8px 0 rgba(90,50,0,.25), 0 0 0 6px #ffd166, 0 0 0 10px rgba(255,255,255,.35), 0 18px 50px rgba(0,0,0,.45); max-width: 86vw; }
 .mg-simon .sm-card.in { opacity: 1; transform: translate(-50%, 0) scale(1); }
 .mg-simon .sm-card.ok { box-shadow: 0 8px 0 rgba(0,80,40,.25), 0 0 0 6px #5ee08a, 0 0 40px 10px rgba(94,224,138,.7); }
 .mg-simon .sm-card.bad { box-shadow: 0 8px 0 rgba(90,0,20,.25), 0 0 0 6px #ff5d73, 0 0 40px 10px rgba(255,93,115,.6); animation: sm-shake .45s; }

@@ -414,7 +414,7 @@
       }
       // 底部：墙还有多远
       function drawDistance(p, remain) {
-        const bw = Math.min(W * .34, 460 * S), bx = W / 2 - bw / 2, by = H - 30 * S, bh = 16 * S;
+        const bw = Math.min(W * .34, 460 * S), bx = W / 2 - bw / 2, by = H - 30 * S - G.safeB(), bh = 16 * S; // 触屏按钮条在的时候挪到它上面
         x.fillStyle = 'rgba(30,8,60,.7)'; x.beginPath(); x.roundRect(bx - 50 * S, by - 24 * S, bw + 100 * S, 48 * S, 24 * S); x.fill();
         x.fillStyle = 'rgba(255,255,255,.18)'; x.beginPath(); x.roundRect(bx, by - bh / 2, bw, bh, bh / 2); x.fill();
         const gr = x.createLinearGradient(bx, 0, bx + bw, 0); gr.addColorStop(0, '#4cc9ff'); gr.addColorStop(.7, '#ffd166'); gr.addColorStop(1, '#ff5d73');

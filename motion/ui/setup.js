@@ -261,12 +261,17 @@
 
   /* ================= ⑤ 光标练习 ================= */
   PAGES.cursor = function (el, onClean) {
-    el.innerHTML = '<div class="m-cols"><div class="m-col"><div class="m-cdemo"><canvas data-move="cursor"></canvas></div><ul class="m-tips"><li>' + U.E('✋') + ' 举起一只手到胸前，光标就出现了</li><li>' + U.E('⭕') + ' 停在按钮上，圆圈转满就会点下去</li><li>' + U.E('👊') + ' 着急的话向前推一下手，马上就点</li><li>' + U.E('👇') + ' 手放下来，光标自己会藏起来</li></ul>' +
-      '<label class="m-dwell">停留多久算点击：<input type="range" min="0.5" max="2" step="0.1" value="' + M.cfg.cursor.dwell + '"><b></b> 秒</label>' +
+    el.innerHTML = '<div class="m-cols"><div class="m-col"><div class="m-cdemo"><canvas data-move="cursor"></canvas></div><ul class="m-tips"><li>' + U.E('✋') + ' 举起一只手到胸前，张开手掌，光标就出现了</li><li>' + U.E('✊') + ' 对准按钮，用下面选的手势点一下</li><li>' + U.E('👊') + ' 不管选哪种，向前推一下手都能马上点</li><li>' + U.E('👇') + ' 手放下来，光标自己会藏起来</li></ul>' +
+      '<div class="m-opts m-click">' + [['grab', '✊', '握拳', '张开手掌再握拳'], ['pinch', '🤏', '捏合', '拇指食指捏一下'], ['push', '👊', '推手', '向前推一下，离远也行'], ['dwell', '⭕', '停留', '停住等圆圈转满']].map(o => '<button class="m-opt" data-v="' + o[0] + '">' + U.E(o[1]) + '<b>' + o[2] + '</b><small>' + o[3] + '</small></button>').join('') + '</div>' +
+      '<label class="m-dwell"><span class="m-dwl"></span><input type="range" min="0.5" max="2" step="0.1" value="' + M.cfg.cursor.dwell + '"><b></b> 秒</label>' +
       '<div class="m-opts mini m-hand"><button class="m-opt" data-v="auto">两只手都行</button><button class="m-opt" data-v="R">只用右手</button><button class="m-opt" data-v="L">只用左手</button></div></div>' +
       '<div class="m-col m-bubbles"><p>用手点破这些泡泡！</p><div class="m-bfield"></div><div class="m-bscore">已点破 <b>0</b> 个</div></div></div>';
     const rng = el.querySelector('.m-dwell input'), rb = el.querySelector('.m-dwell b'); rb.textContent = M.cfg.cursor.dwell;
     rng.oninput = () => { M.cfg.cursor.dwell = +rng.value; rb.textContent = rng.value; M.save(); };
+    // 握拳点击看不清手指（离太远、太暗）时会自动改成停留点击，所以两种模式都保留停留时间
+    const ck = el.querySelector('.m-click'), dwl = el.querySelector('.m-dwl');
+    const mkc = () => { const c = M.cfg.cursor.click || 'grab'; ck.querySelectorAll('.m-opt').forEach(b => b.classList.toggle('on', b.dataset.v === c)); dwl.textContent = c === 'dwell' ? '停留多久算点击：' : '看不清手指时，停留多久算点击：'; dwl.parentNode.style.display = c === 'push' ? 'none' : ''; }; mkc();
+    ck.onclick = e => { const b = e.target.closest('.m-opt'); if (!b) return; M.cfg.cursor.click = b.dataset.v; M.save(); mkc(); M.Synth.sfx('pop', .4); };
     const hand = el.querySelector('.m-hand'); const mk = () => hand.querySelectorAll('.m-opt').forEach(b => b.classList.toggle('on', b.dataset.v === M.cfg.cursor.hand)); mk();
     hand.onclick = e => { const b = e.target.closest('.m-opt'); if (!b) return; M.cfg.cursor.hand = b.dataset.v; M.save(); mk(); };
     const field = el.querySelector('.m-bfield'); let n = 0;

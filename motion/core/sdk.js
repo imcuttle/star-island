@@ -127,15 +127,18 @@
     // 键鼠提示：第一次用键盘 / 鼠标时出现几秒
     const KEYN = { left: '←', right: '→', jump: '↑', squat: '↓', punch: '空格 / 点击', push: 'F', clap: 'C', run: 'R', upL: '1', upR: '2', upBoth: '3', head: '4', hips: '5', tpose: '6', oneLeg: '7', legs: '8' };
     hint.innerHTML = U.E('⌨️') + ' <b>鼠标 = 手</b>（快速划动 = 挥手）' + acts.filter(a => KEYN[a]).map(a => ' · ' + KEYN[a] + ' ' + info(a)[2]).join('') + (def.vmode === 'mirror' ? ' · M 切换对称' : '');
-    let shown = 0;
-    const lp = M.loop(() => {
+    let shown = 0, padT = 0;
+    const lp = M.loop((dt, t) => {
       const V = M.Virtual, on = V.active, touch = on && V.touch;
       const showPad = touch || (M.mobile && !M.Virtual.camOk()); pad.classList.toggle('in', showPad); this.hudEl.classList.toggle('vpad', showPad);
+      // 按钮条占了屏幕底部多高：游戏把底部的提示、进度条挪到它上面（G.safeB() / CSS 变量 --padh），不被按钮挡住
+      if (showPad !== this._padOn || (showPad && t - padT > 500)) { this._padOn = showPad; padT = t; const h = showPad && pad.querySelector('.m-vb') ? pad.offsetHeight + 14 : 0; if (h !== this._padH) { this._padH = h; this.el.style.setProperty('--padh', h + 'px'); } }
       if (on && !touch && !shown) { shown = U.now(); hint.classList.add('in'); }
       if (shown && U.now() - shown > 7000) hint.classList.remove('in');
     });
     this._disp.push(() => lp.stop());
   };
+  SP.safeB = function () { return this._padH || 0; }; // 屏幕底部被触屏按钮条占住的高度（px），没有按钮条时是 0
   SP.W = function () { return this.stage.clientWidth || innerWidth; };
   SP.H = function () { return this.stage.clientHeight || innerHeight; };
   SP.player = function (i) { return M.Tracker.person(i || 0) || (i ? null : M.Tracker.main()); };
@@ -143,7 +146,7 @@
   SP.q = function (o) { return Q.next(Object.assign({ zone: this.zone, grade: this.grade }, this.def.qOpts || {}, o || {})); };
   SP.say = function (t, lang) { return t ? Core.Voice.say(t, lang) : Promise.resolve(); };
   // 合成音效优先；文件音效（assets/sfx）用 G.fileSfx
-  SP.sfx = function (n, v) { M.Synth.sfx(n, v); };
+  SP.sfx = function (n, v, p) { M.Synth.sfx(n, v, p); };
   SP.fileSfx = function (n, v) { Core.Audio2.sfx(n, v); };
   SP.on = function (type, fn) {
     const wrap = e => { if (!this.started || this.paused || this.over) return; fn(e); };
@@ -267,7 +270,7 @@
       if (!M.Input.live()) await M.Input.start();
       await M.Tracker.configure({ people: this.players, hands: !!n.hands }); M.Tracker.start();
       if (n.voice || n.mic) { if (!M.Input.audioStream && M.cfg.audio.kind !== 'none') { await M.Input.startAudio(); M.Ears.attach(M.Input.audioStream); } if (n.voice) await M.Ears.prepare(this.def.lang || 'zh'); }
-      if (this.def.preload) await this.def.preload(this);
+      // 游戏自己的素材（def.preload）在切场景之前就加载好了（见 M.warm），这里不再等
     } finally { if (L) L.done(); }
   };
   // 开始前的介绍卡：动作演示 + 举起双手开始
@@ -397,12 +400,67 @@
     wrong() {},
   };
 
+  /* ---------- 切场景前的准备 ----------
+     停在当前画面，屏幕中间盖一层加载进度（挡住点击，体感光标也先藏起来）：识别模型（第一次要下载，显示真实进度）→ 摄像头 → 动作识别 → 麦克风 / 语音识别 → 游戏自己的素材（3D 模型等），
+     全部好了才切过去，进去以后马上就能玩。每一步都有超时：网络不好、没有摄像头也不会卡住（进去以后可以用触屏 / 键鼠玩）
+     返回 { pre, done }：done() 收起进度框（在新场景接上自己的加载进度以后调用，中间不闪）；被更新的一次准备取代时返回 null */
+  let warmSeq = 0;
+  M.warm = async function (title, o) {
+    o = o || {}; const seq = ++warmSeq, pre = {};
+    const L = window.Preload && Preload.Loader ? Preload.Loader.hold(title, 120) : { set() {}, done() {} };
+    const step = (f, ms) => Promise.race([Promise.resolve().then(f).catch(e => console.warn('[warm]', e)), U.sleep(ms)]);
+    let ok = false;
+    const off = M.Input.on('change', () => { if (M.Input.live()) L.set(.78, '正在启动动作识别…'); });
+    try {
+      const def = o.def, n = def ? def.needs : {}, players = def ? Math.max(1, (o.opts && o.opts.players) || n.people || 1) : 1;
+      if (!M.Tracker.ready) await step(() => M.fetchModels((k, txt) => L.set(.04 + k * .6, txt)), 180000);
+      if (!(M.Input.live() && M.Tracker.ready && M.Tracker.running)) {
+        L.set(.66, M.Input.live() ? '正在启动动作识别…' : '正在打开摄像头…（弹出提示时请点「允许」）');
+        await step(() => M.ensureRunning(), 45000);
+      }
+      if (def) {
+        L.set(.82, '正在准备动作识别…'); await step(() => M.Tracker.configure({ people: players, hands: !!n.hands }), 30000);
+        if (n.voice || n.mic) { L.set(.88, '正在准备麦克风和语音识别…'); await step(async () => { if (!M.Input.audioStream && M.cfg.audio.kind !== 'none') { await M.Input.startAudio(); M.Ears.attach(M.Input.audioStream); } if (n.voice) await M.Ears.prepare(def.lang || 'zh'); }, 30000); }
+        if (def.preload) { L.set(.93, '正在加载游戏素材…'); pre.mode = (o.opts && o.opts.mode) || ''; await step(() => def.preload(pre), 60000); }
+      }
+      L.set(1, '马上就好');
+      ok = seq === warmSeq;
+    } finally { off(); if (!ok) L.done(); }
+    return ok ? { pre, done: () => L.done() } : null;
+  };
+  // 识别要用的大文件（推理库 wasm、姿态模型、手指模型）先下载进缓存（Service Worker 会存起来），这样进度条能显示真实的下载进度；
+  // 之后识别线程再读同样的地址，直接从缓存拿
+  const fetched = new Set();
+  M.fetchModels = async function (prog) {
+    if (!M.web || !window.fetch || !/^https?:$/.test(location.protocol)) return;
+    const MB = 1048576, files = [['wasm/vision_wasm_internal.js', .2], ['vision_worker_bundle.js', .14], ['wasm/vision_wasm_internal.wasm', 9.2], ['models/' + (M.cfg.model === 'full' ? 'pose_full' : 'pose_lite') + '.task', M.cfg.model === 'full' ? 9 : 5.5], ['models/hand.task', 7.5]].filter(f => !fetched.has(f[0]));
+    if (!files.length) return;
+    const total = files.reduce((a, f) => a + f[1] * MB, 0); let got = 0, shown = -1;
+    const tell = () => { const k = Math.min(1, got / total), pct = Math.floor(k * 100); if (pct === shown) return; shown = pct; prog(k, '下载识别模型 ' + pct + '%（' + (got / MB).toFixed(1) + ' / ' + (total / MB).toFixed(0) + ' MB，只需一次）'); };
+    tell();
+    for (const [f, mb] of files) {
+      const est = mb * MB; let mine = 0;
+      try {
+        const r = await fetch(M.url('motion/vendor/' + f)); if (!r.ok || !r.body) { got += est; tell(); continue; }
+        const rd = r.body.getReader();
+        for (;;) { const { done, value } = await rd.read(); if (done) break; const add = Math.min(value.length, Math.max(0, est - mine)); mine += value.length; got += add; tell(); }
+        got += Math.max(0, est - mine); fetched.add(f); tell();
+      } catch (e) { got += Math.max(0, est - mine); tell(); }
+    }
+  };
+
   /* ---------- 开一局 ---------- */
   M.play = function (id, opts) {
     const def = typeof id === 'string' ? M.gameById(id) : id; if (!def) return;
     opts = Object.assign({}, opts); M.lastPlay = { id: def.id, opts };
-    Core.Audio2.stopMusic();
-    return App.show('mgame', el => { const G = new Session(def, opts, el); el._G = G; window.__MG = G; }, {}).then(el => { if (el && el._G) el._G.run(); });
+    return M.warm('正在准备「' + def.name + '」', { def, opts }).then(w => {
+      if (!w) return;
+      Core.Audio2.stopMusic();
+      // 先发起切场景（它会马上接上自己的加载进度），再收起准备进度，中间不闪
+      const p = App.show('mgame', el => { const G = new Session(def, opts, el); Object.assign(G, w.pre, { mode: G.mode }); el._G = G; window.__MG = G; }, {});
+      w.done();
+      return p.then(el => { if (el && el._G) el._G.run(); });
+    });
   };
   M.Session = Session;
 })();

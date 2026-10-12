@@ -343,7 +343,9 @@
         g.restore();
       }
       function drawHud(t) {
-        const s = S(), bx = 24 * s, bw = 260 * s, bh = 22 * s, by = C.H - 40 * s;
+        // 底部有触屏按钮条时，能量条挪到左上角暂停键旁边（底部留给按钮和语音字幕，也不压住左边的水晶）
+        const lift = G.safeB() > 0, sa = lift ? M.UI.safe() : null;
+        const s = S(), bw = 260 * s, bh = 22 * s, bx = lift ? sa.l + 80 : 24 * s, by = lift ? sa.t + 34 : C.H - 40 * s;
         g.save(); g.font = '800 ' + 19 * s + 'px ' + U.FONT; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#e8dcff';
         // 能量满了：标题换成闪烁的「双手前推」提示（不和语音字幕抢位置）
         const full = energy >= 1;
@@ -361,7 +363,7 @@
           const listening = !!lst && M.Ears.listening === lst && !busy, fresh = heard && t - heardT < 2.5;
           if (listening || fresh) {
             const txt = fresh ? (heard === '没听清' ? '没听清，再说一次~' : '我听到：' + heard + (heardBad ? '  再说一次~' : '')) : '说出答案念咒语…';
-            g.font = '800 ' + 24 * s + 'px ' + U.FONT; const isz = 30 * s, tw = g.measureText(txt).width + isz + 44 * s, th = 48 * s, px = C.W * .42 - tw / 2, py = C.H * .905;
+            g.font = '800 ' + 24 * s + 'px ' + U.FONT; const isz = 30 * s, tw = g.measureText(txt).width + isz + 44 * s, th = 48 * s, px = C.W * .42 - tw / 2, py = Math.min(C.H * .905, C.H - G.safeB() - th - 6 * s);
             g.fillStyle = 'rgba(25,10,60,.85)'; g.strokeStyle = fresh && heardBad ? '#ff8fa0' : '#ffd166'; g.lineWidth = 3 * s; g.beginPath(); g.roundRect(px, py, tw, th, th / 2); g.fill(); g.stroke();
             const im = U.emoImg('🎤'), ps = isz * (1 + lv * .35); if (im.complete && im.naturalWidth) g.drawImage(im, px + 16 * s + (isz - ps) / 2, py + (th - ps) / 2, ps, ps);
             g.fillStyle = fresh ? '#fff' : 'rgba(255,255,255,.7)'; g.textBaseline = 'middle'; g.fillText(txt, px + isz + 26 * s, py + th / 2 + s);

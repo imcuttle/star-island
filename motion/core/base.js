@@ -21,7 +21,7 @@
     asr: 'auto',                             // auto / vosk / phone / web / off
     mirror: true, model: 'lite', people: 1,  // 识别模型：lite 快 / full 准
     sens: { jump: 1, squat: 1, swipe: 1, punch: 1 }, // 灵敏度倍数（越大越容易触发）
-    cursor: { dwell: 1.1, hand: 'auto', global: false },
+    cursor: { dwell: 1.1, hand: 'auto', global: false, click: 'grab' }, // click：grab 张开手掌再握拳就点（看不清手指时退回停留点击）/ dwell 停留点击
     pip: 'figure', debug: false, firstRun: true,     // 游戏里的实时小人：figure 线框小人 / camera 摄像头画面 + 骨架 / off 关闭
     phoneName: '',
   };

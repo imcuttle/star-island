@@ -178,6 +178,14 @@
     st.t = t; hstate.set(key, st); hd.pinch = st.pinch;
   };
 
+  // 手掌张开程度（0 = 握拳，1 = 五指张开）：四根手指指尖到手腕的距离 ÷ 指根到手腕的距离，伸直约 1.9，握紧约 1.0
+  // 只用比例，不管手离摄像头远近、手掌朝哪边；z 也算进去，手掌正对摄像头握拳时也能看出来
+  B.openness = function (p) {
+    const d = (a, b) => Math.hypot(p[a].x - p[b].x, p[a].y - p[b].y, ((p[a].z || 0) - (p[b].z || 0)) * .6);
+    let s = 0; [[8, 5], [12, 9], [16, 13], [20, 17]].forEach(([tip, mcp]) => { s += U.clamp((d(tip, 0) / Math.max(1e-4, d(mcp, 0)) - 1.05) / .7, 0, 1); });
+    return s / 4;
+  };
+
   // 以当前站姿为准重新标定（设置页「站好别动」）
   B.calibrate = function (s) { if (!s || !s.body) return false; const b = s.body; b.baseHip = b.hip.y; b.baseSh = b.sh.y; b.cx0 = b.hip.x; b.T = Math.max(.02, U.dist(b.sh, b.hip)); return true; };
   B.center = function (s) { if (s && s.body && s.body.hip) s.body.cx0 = s.body.hip.x; };

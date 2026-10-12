@@ -12,6 +12,8 @@
   const T = M.Tracker = M.emitter({
     ready: false, loading: null, error: '', pose: null, hand: null, vision: null, fileset: null,
     people: [], hands: [], fps: 0, ms: 0, running: false, needHands: false, numPoses: 1, modelName: '',
+    // 体感光标「张开手掌 → 握拳」点击：光标那只手附近裁一块小图，单独看手指（grabWant 由光标每帧设置：{ slot, side } 或 null）
+    grabWant: null, grabReady: false, grab: null, _roiFly: null,
     _lastTs: 0, _lastStamp: null, _loop: null, _lastT: 0, _slots: [],
 
     /* ---------- 后台线程（Worker）识别：推理不占主线程，画面和游戏逻辑更顺 ----------
@@ -29,7 +31,7 @@
       });
       const p = this._wchain.then(run, run); this._wchain = p.catch(() => {}); return p;
     },
-    wopts() { return { base: M.url('motion/vendor/'), model: M.cfg.model, people: this.numPoses, hands: this.needHands }; },
+    wopts() { return { base: M.url('motion/vendor/'), model: M.cfg.model, people: this.numPoses, hands: this.needHands, grab: true }; },
     async startWorker() {
       if (M.cfg.worker === false || typeof Worker === 'undefined' || typeof createImageBitmap === 'undefined') return false;
       try {
@@ -37,7 +39,7 @@
         w.onmessage = e => this.onWorker(e.data);
         w.onerror = e => { console.warn('识别线程出错，改用主线程', e.message); this.dropWorker(); };
         const r = await this.wcall(Object.assign({ type: 'init' }, this.wopts()));
-        this.delegate = r.delegate + ' · 后台线程'; this.mode = 'worker'; this.modelName = M.cfg.model + this.numPoses + (this.needHands ? 'h' : '');
+        this.delegate = r.delegate + ' · 后台线程'; this.mode = 'worker'; this.grabReady = !!r.grab; this.modelName = M.cfg.model + this.numPoses + (this.needHands ? 'h' : '');
         return true;
       } catch (e) { console.warn('识别线程不可用，改用主线程：', e.message || e); this.dropWorker(); return false; }
     },
@@ -55,15 +57,21 @@
       this.fps = this.fps * .9 + (1000 / Math.max(1, dtF)) * .1; this.ms = this.ms * .9 + d.ms * .1;
       if (!this.ready || !M.Input.live()) return;
       this.ingest({ landmarks: d.poses.map(p => p.lm), worldLandmarks: d.poses.map(p => p.world) }, this.needHands ? { landmarks: d.hands } : null, t);
+      const roi = this._roiFly; this._roiFly = null; if (roi) this.ingestGrab(d.grab, roi, t);
     },
     sendFrame(v, ts) {
       const vw = v.videoWidth || v.width, vh = v.videoHeight || v.height; if (!vw || !vh) return;
-      const t0 = U.now(), k = Math.min(1, 640 / vw);
+      const t0 = U.now(), k = Math.min(1, 640 / vw), roi = this.grabReady ? this.roiRect(vw, vh) : null;
       this.busy = true;
-      createImageBitmap(v, k < 1 ? { resizeWidth: Math.round(vw * k), resizeHeight: Math.round(vh * k), resizeQuality: 'low' } : {}).then(bm => {
+      Promise.all([
+        createImageBitmap(v, k < 1 ? { resizeWidth: Math.round(vw * k), resizeHeight: Math.round(vh * k), resizeQuality: 'low' } : {}),
+        roi ? createImageBitmap(v, roi.sx, roi.sy, roi.s, roi.s, { resizeWidth: 256, resizeHeight: 256, resizeQuality: 'medium' }).catch(() => null) : null,
+      ]).then(([bm, rb]) => {
         this.mainMs = this.mainMs * .9 + (U.now() - t0) * .1;
-        if (!this.worker) { bm.close(); return; }
-        this.worker.postMessage({ type: 'frame', bitmap: bm, ts }, [bm]);
+        if (!this.worker) { bm.close(); if (rb) rb.close(); return; }
+        const msg = { type: 'frame', bitmap: bm, ts }, tr = [bm];
+        if (rb) { msg.roi = rb; tr.push(rb); this._roiFly = roi; } else this._roiFly = null;
+        this.worker.postMessage(msg, tr);
       }).catch(() => { this.busy = false; });
       // 兜底：结果迟迟不回（Worker 卡住）就放行下一帧
       clearTimeout(this._busyT); this._busyT = setTimeout(() => { this.busy = false; }, 600);
@@ -114,7 +122,41 @@
       }
       await this.makePose();
       if (this.needHands) await this.makeHand();
+      await this.makeGrab();
       return true;
+    },
+    async makeGrab() {
+      if (this.grabLm || this._grabLoading) return this._grabLoading;
+      this._grabLoading = (async () => {
+        const opts = d => ({ baseOptions: { modelAssetPath: M.url('motion/vendor/models/hand.task'), delegate: d }, runningMode: 'VIDEO', numHands: 1, minHandDetectionConfidence: .4, minHandPresenceConfidence: .4, minTrackingConfidence: .4 });
+        try { this.grabLm = await this.vision.HandLandmarker.createFromOptions(this.fileset, opts('GPU')); } catch (e) { try { this.grabLm = await this.vision.HandLandmarker.createFromOptions(this.fileset, opts('CPU')); } catch (e2) { this.grabLm = null; } }
+        this.grabReady = !!this.grabLm;
+      })();
+      return this._grabLoading;
+    },
+    // 光标那只手的裁剪框（视频像素，正方形）：以姿态模型的手腕 → 手指方向为中心，边长按手的大小和躯干长度估计
+    roiRect(vw, vh) {
+      const w = this.grabWant; if (!w) return null;
+      const p = this.people.find(q => q && q.present && q.slot === w.slot && q.raw && q.body && !q.virtual); if (!p) return null;
+      const R = p.raw, mir = M.cfg.mirror, wi = w.side === 'L' ? 15 : 16, pi = wi + 2, ii = wi + 4;
+      if (!R[wi] || R[wi].v < .3) return null;
+      const X = q => (mir ? 1 - q.x : q.x) * vw, Y = q => q.y * vh, wx = X(R[wi]), wy = Y(R[wi]);
+      let fx = wx, fy = wy, span = 0;
+      if (R[ii].v > .2 && R[pi].v > .2) { const mx = (X(R[ii]) + X(R[pi])) / 2, my = (Y(R[ii]) + Y(R[pi])) / 2; span = Math.hypot(mx - wx, my - wy); fx = wx + (mx - wx) * .8; fy = wy + (my - wy) * .8; }
+      let s = Math.max(span * 3.4, (p.body.T || .2) * vh * .8, 56); s = Math.round(Math.min(s, vw, vh, Math.max(160, vh * .7)));
+      return { sx: Math.round(U.clamp(fx - s / 2, 0, vw - s)), sy: Math.round(U.clamp(fy - s / 2, 0, vh - s)), s, vw, vh, mir, slot: p.slot, side: w.side };
+    },
+    // 裁剪小图里的 21 个手指点 → 张开程度（0 握拳 ～ 1 五指张开），挂到 person.grab
+    ingestGrab(pts, roi, t) {
+      const p = this.people.find(q => q && q.slot === roi.slot && q.present); if (!p) return;
+      if (!pts || pts.length < 21) return; // 没看到手：person.grab 保持旧值，光标按时间判断「看不清手」
+      const raw = M.Body.openness(pts), g = p.grab, prev = g && g.side === roi.side && t - g.t < 300 ? g.open : raw;
+      const full = pts.map(q => { const x = (roi.sx + q.x * roi.s) / roi.vw; return { x: roi.mir ? 1 - x : x, y: (roi.sy + q.y * roi.s) / roi.vh }; });
+      // 捏合：拇指尖到食指尖的距离 ÷ 手掌长度，换成 0 捏住 ～ 1 分开
+      const palm = Math.hypot(pts[0].x - pts[9].x, pts[0].y - pts[9].y) || .1, pin = U.clamp((Math.hypot(pts[4].x - pts[8].x, pts[4].y - pts[8].y) / palm - .22) / .45, 0, 1);
+      const pp = g && g.side === roi.side && t - g.t < 300 ? g.pin : pin;
+      p.grab = { side: roi.side, open: prev + (raw - prev) * .6, raw, pin: pp + (pin - pp) * .6, pts: full, t };
+      this.grab = p.grab;
     },
     start() {
       if (this.running) return; this.running = true;
@@ -136,9 +178,13 @@
       try { res = this.pose.detectForVideo(v, ts); } catch (e) { console.warn(e); return; }
       let hres = null;
       if (this.needHands && this.hand) { try { hres = this.hand.detectForVideo(v, ts); } catch (e) {} }
+      // 光标手：裁一块画到小画布上再看手指
+      const vw = M.Input.vw, vh = M.Input.vh, roi = this.grabLm ? this.roiRect(vw, vh) : null; let gp = null;
+      if (roi) { try { const c = this._rc || (this._rc = Object.assign(document.createElement('canvas'), { width: 256, height: 256 })), cx = this._rcx || (this._rcx = c.getContext('2d')); cx.drawImage(v, roi.sx, roi.sy, roi.s, roi.s, 0, 0, 256, 256); const h = this.grabLm.detectForVideo(c, ts); gp = h.landmarks && h.landmarks[0]; } catch (e) {} }
       const dtF = this._lastT ? t - this._lastT : 33; this._lastT = t;
       this.fps = this.fps * .9 + (1000 / Math.max(1, dtF)) * .1; this.ms = this.ms * .9 + (U.now() - t0) * .1;
       this.ingest(res, hres, t);
+      if (roi) this.ingestGrab(gp, roi, t);
     },
 
     // 键鼠 / 触屏兜底：虚拟小人（见 virtual.js）

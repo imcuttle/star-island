@@ -647,7 +647,7 @@
       }
       function drawHud(t) {
         // 底部：星球能量条 + 护盾状态
-        const bw = Math.min(360 * s, C.W * .32), bh = 18 * s, bx = C.W / 2 - bw / 2, by = C.H - 44 * s;
+        const bw = Math.min(360 * s, C.W * .32), bh = 18 * s, bx = C.W / 2 - bw / 2, by = C.H - 44 * s - G.safeB(); // 触屏按钮条在的时候挪到它上面
         x.fillStyle = 'rgba(10,8,40,.7)'; x.beginPath(); x.roundRect(bx - 4 * s, by - 4 * s, bw + 8 * s, bh + 8 * s, 12 * s); x.fill();
         const f = en / 100, g = x.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, f < .3 ? '#ff5d73' : '#45e0b8'); g.addColorStop(1, f < .3 ? '#ff9f1a' : '#7ef9ff');
         x.fillStyle = g; x.beginPath(); x.roundRect(bx, by, Math.max(bh, bw * f), bh, 9 * s); x.fill();

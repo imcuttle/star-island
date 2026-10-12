@@ -12,6 +12,12 @@
   UI.compact = compact;
   // 体感画面实际占的区域（投屏铺满时是居中的 16:9，不是整个窗口）
   UI.area = () => { const a = document.getElementById('app'); return a ? a.getBoundingClientRect() : { left: 0, top: 0, width: innerWidth, height: innerHeight }; };
+  // 刘海让出来的边距（体感画面铺满整屏，弹窗要自己让开左右刘海和顶部；投屏铺满时为 0）
+  let probe = null;
+  UI.safe = () => {
+    if (!probe) { probe = U.h('div'); probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:var(--mst,0px) var(--msr,0px) 0 var(--msl,0px)'; document.body.appendChild(probe); }
+    const cs = getComputedStyle(probe); return { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, l: parseFloat(cs.paddingLeft) || 0 };
+  };
 
   /* ---------- 弹窗等比缩放 ---------- */
   UI.fit = function (box, o) {
@@ -19,9 +25,9 @@
     let w0 = null;
     const run = () => {
       if (!box.isConnected) return;
-      box.style.scale = ''; box.style.width = ''; box.style.maxHeight = '';
+      box.style.scale = ''; box.style.width = ''; box.style.maxHeight = ''; box.style.margin = '';
       w0 = box.getBoundingClientRect().width;
-      const ar = UI.area(), aw = ar.width - pad * 2, ah = ar.height - pad * 2;
+      const ar = UI.area(), sa = UI.safe(), aw = ar.width - pad * 2 - sa.l - sa.r, ah = ar.height - pad * 2 - sa.t;
       let s = 1;
       for (let i = 0; i < 3; i++) {
         const h = box.scrollHeight; const want = U.clamp(Math.min(ah / h, aw / Math.max(1, w0)), min, 1);
@@ -32,6 +38,13 @@
       box.style.maxHeight = ah / s + 'px';
       box.style.scale = s < 1 ? s.toFixed(3) : ''; // 用独立的 scale 属性，不和弹出动画的 transform 打架
       box.dataset.fit = s.toFixed(2);
+      // 缩小前的排版尺寸比容器大时，网格会把它靠左上摆（缩小后就偏到右下、出屏）：用对称的负边距让它居中
+      const pr = box.parentElement;
+      if (s < 1 && pr) {
+        const pc = getComputedStyle(pr), cw = pr.clientWidth - parseFloat(pc.paddingLeft) - parseFloat(pc.paddingRight), ch = pr.clientHeight - parseFloat(pc.paddingTop) - parseFloat(pc.paddingBottom);
+        const mx = Math.min(0, (cw - box.offsetWidth) / 2), my = Math.min(0, (ch - box.offsetHeight) / 2);
+        if (mx || my) box.style.margin = my + 'px ' + mx + 'px';
+      }
     };
     run(); requestAnimationFrame(run); setTimeout(run, 400); // 等字体、图片、canvas 尺寸就位
     const ro = new ResizeObserver(() => { clearTimeout(box._fitT); box._fitT = setTimeout(run, 120); });

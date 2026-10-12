@@ -29,12 +29,12 @@
     if (document.getElementById('mg-dance-css')) return;
     const s = document.createElement('style'); s.id = 'mg-dance-css';
     s.textContent = `
-.mg-dance .mg-pipw { bottom: auto; top: calc(84px + env(safe-area-inset-top)); }
+.mg-dance .mg-pipw { bottom: auto; top: calc(84px + var(--mst)); }
 .mg-dance .mg-pop.pp-at { font-size: 40px; }
 .mg-dance .mg-pop.pp-qok { top: 44%; font-size: 72px; color: #ffd166; text-shadow: 0 0 26px #ffb020, 0 5px 0 #8a4b00; }
-.dn-team { position: absolute; bottom: calc(16px + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 10px; height: 58px; min-width: 230px; padding: 0 22px; border-radius: 14px; color: #fff; font-family: 'Fredoka', var(--font); text-shadow: 0 2px 0 rgba(0,0,0,.35); box-shadow: 0 6px 20px rgba(0,0,0,.4), inset 0 0 0 3px rgba(255,255,255,.35); transition: transform .2s; }
-.dn-team.red { left: calc(16px + env(safe-area-inset-left)); background: linear-gradient(100deg, #8a001e, #ff3d5e); transform: skewX(-10deg); }
-.dn-team.blue { right: calc(16px + env(safe-area-inset-right)); background: linear-gradient(260deg, #003a9c, #2fa8ff); transform: skewX(10deg); flex-direction: row-reverse; }
+.dn-team { position: absolute; bottom: 12px; display: flex; align-items: center; gap: 10px; height: 58px; min-width: 230px; padding: 0 22px; border-radius: 14px; color: #fff; font-family: 'Fredoka', var(--font); text-shadow: 0 2px 0 rgba(0,0,0,.35); box-shadow: 0 6px 20px rgba(0,0,0,.4), inset 0 0 0 3px rgba(255,255,255,.35); transition: transform .2s; }
+.dn-team.red { left: calc(16px + var(--msl)); background: linear-gradient(100deg, #8a001e, #ff3d5e); transform: skewX(-10deg); }
+.dn-team.blue { right: calc(16px + var(--msr)); background: linear-gradient(260deg, #003a9c, #2fa8ff); transform: skewX(10deg); flex-direction: row-reverse; }
 .dn-team .emo { width: 34px; height: 34px; }
 .dn-team div { display: flex; flex-direction: column; line-height: 1; }
 .dn-team.blue div { align-items: flex-end; }
@@ -43,7 +43,7 @@
 .dn-team.lead { box-shadow: 0 0 26px rgba(255,209,102,.8), inset 0 0 0 3px #ffd166; }
 .dn-team.lead::after { content: '👑'; position: absolute; top: -22px; font-size: 26px; }
 .dn-team.red.lead::after { left: 12px; } .dn-team.blue.lead::after { right: 12px; }
-.dn-tug { position: absolute; left: 50%; bottom: calc(30px + env(safe-area-inset-bottom)); width: min(30vw, 360px); height: 14px; transform: translateX(-50%); border-radius: 999px; overflow: hidden; background: #2fa8ff; box-shadow: 0 0 0 3px rgba(255,255,255,.5), 0 0 18px rgba(0,0,0,.5); }
+.dn-tug { position: absolute; left: 50%; bottom: 26px; width: min(30vw, 360px); height: 14px; transform: translateX(-50%); border-radius: 999px; overflow: hidden; background: #2fa8ff; box-shadow: 0 0 0 3px rgba(255,255,255,.5), 0 0 18px rgba(0,0,0,.5); }
 .dn-tug i { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; background: linear-gradient(90deg, #ff3d5e, #ff7a8e); transition: width .3s; }
 .dn-tug i::after { content: ''; position: absolute; right: -3px; top: -4px; bottom: -4px; width: 6px; background: #fff; border-radius: 3px; box-shadow: 0 0 10px #fff; }
 .dn-banner { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(.3); opacity: 0; font: 900 92px 'Fredoka', var(--font); white-space: nowrap; transition: transform .5s cubic-bezier(.2, 1.6, .4, 1), opacity .3s; text-shadow: 0 0 30px currentColor, 0 6px 0 rgba(0,0,0,.4); -webkit-text-stroke: 3px #fff; }
