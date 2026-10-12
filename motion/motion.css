@@ -537,3 +537,40 @@ html[data-screen=motion], html[data-screen=mgame] { overscroll-behavior: none; }
   .s-move .m-col.wide { flex: 1.1; }
   .m-stb { width: 40px; height: 40px; font-size: 20px; }
 }
+
+/* ================= 投屏铺满：体感画面固定 16:9 居中，四周是装饰底色（电视「全屏 / 缩放」时被裁掉） ================= */
+html.m-tvfill body { background: radial-gradient(ellipse at 50% 50%, #1b2560, #070b22 70%) !important; background-size: 100% 100% !important; background-position: 0 0 !important; background-repeat: no-repeat !important; } /* 主游戏的主题会改 body 背景尺寸，这里压住 */
+html.m-tvfill #app { left: var(--tvx, 0); right: var(--tvx, 0); top: var(--tvy, 0); bottom: var(--tvy, 0); overflow: hidden; }
+html.m-tvfill .m-cursor-hint { left: 50%; }
+/* 16:9 画面里不用再给刘海 / 横条留安全区 */
+html.m-tvfill .s-motion, html.m-tvfill .s-mgame { --sai: 0px; }
+
+.m-cbox { position: relative; width: min(760px, 94vw); padding: 22px 28px; border-radius: 26px; background: linear-gradient(170deg, #1f2a66, #0e1536); box-shadow: 0 0 0 2px rgba(126,249,255,.3), 0 24px 60px rgba(0,0,0,.5); text-align: center; }
+.m-cwhy { font-size: 15px; line-height: 1.6; opacity: .9; margin: 10px 0; }
+.m-cwhy b, .m-cs b { color: #ffd166; }
+.m-crow { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.m-crow .m-opt { min-width: 200px; }
+.m-csteps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; text-align: left; }
+.m-cs { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 14px; background: rgba(255,255,255,.06); font-size: 14px; line-height: 1.45; }
+.m-cs .emo { width: 26px !important; height: 26px !important; flex: none; }
+/* 动画：手机（长）→ 电视（16:9）。关：电视上下黑边；开：手机两边是装饰，电视放大后铺满 */
+.m-cdemo { display: flex; align-items: center; justify-content: center; gap: 18px; height: 110px; }
+.m-cph { position: relative; width: 156px; height: 72px; border-radius: 12px; background: #0b1230; box-shadow: inset 0 0 0 4px #9fb3e8; display: grid; place-items: center; }
+.m-cph i, .m-ctvin i { display: block; width: calc(100% - 10px); height: calc(100% - 10px); border-radius: 5px; background: linear-gradient(135deg, #ff7eb3, #7c5cff 50%, #4cc9ff); transition: width .6s; }
+.m-cdemo.fill .m-cph i { width: 117px; box-shadow: 0 0 0 20px rgba(60,80,160,.4); }
+.m-carrow { font-size: 28px; color: #7ef9ff; animation: m-nudge 1.2s ease-in-out infinite; }
+.m-ctv { position: relative; width: 176px; height: 99px; border-radius: 6px; background: #000; box-shadow: 0 0 0 5px #333a55, 0 12px 0 -6px #333a55; overflow: hidden; display: grid; place-items: center; }
+.m-ctvin { width: 176px; height: 81px; display: grid; place-items: center; transition: transform .6s .3s; }
+.m-ctvin i { width: 170px; height: 76px; }
+/* 开铺满：电视上是 16:9 内容，电视「缩放」后铺满 */
+.m-cdemo.fill .m-ctvin { transform: scale(1.22); }
+.m-cdemo.fill .m-ctvin i { width: 138px; height: 76px; box-shadow: 0 0 0 20px rgba(60,80,160,.4); }
+.mg-pbtns.sm { margin-top: 10px; }
+.mg-pbtns.sm .btn { font-size: 14px; padding: 8px 16px; }
+@media (max-height: 520px) {
+  .m-cbox { padding: 12px 18px; }
+  .m-cdemo { height: 84px; transform: scale(.8); }
+  .m-cwhy { font-size: 13px; margin: 4px 0; }
+  .m-cs { font-size: 12px; padding: 5px 8px; }
+  .m-top .m-cast-b span { display: none; }
+}

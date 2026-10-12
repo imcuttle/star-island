@@ -41,7 +41,7 @@
       const dock = document.querySelector('#app .s-hub .dock'); if (!dock || dock.querySelector('.d-motion')) return;
       const b = document.createElement('button'); b.className = 'dbtn d-motion'; b.dataset.key = 'm'; b.dataset.say = '体感乐园';
       b.innerHTML = Core.E('🕺') + '<span>体感</span>';
-      b.addEventListener('click', e => { e.stopPropagation(); Core.Audio2.sfx('click', .4); M.UI.hub(); }, true);
+      b.addEventListener('click', e => { e.stopPropagation(); Core.Audio2.sfx('click', .4); M.UI.immerse(); M.UI.hub(); }, true);
       dock.insertBefore(b, dock.firstChild);
     };
     new MutationObserver(addBtn).observe(document.getElementById('app'), { childList: true, subtree: true });

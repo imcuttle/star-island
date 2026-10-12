@@ -17,6 +17,7 @@
   const DEF = {
     video: { kind: 'cam', id: '' },          // cam(deviceId) / phone(手机编号，按名字记) / ipcam(url)
     audio: { kind: 'cam', id: '' },          // cam 本机麦克风 / phone 手机麦克风 / none
+    tvFill: false,                           // 投屏铺满：体感画面固定 16:9（配合电视「全屏 / 缩放」去掉黑边）
     asr: 'auto',                             // auto / vosk / phone / web / off
     mirror: true, model: 'lite', people: 1,  // 识别模型：lite 快 / full 准
     sens: { jump: 1, squat: 1, swipe: 1, punch: 1 }, // 灵敏度倍数（越大越容易触发）

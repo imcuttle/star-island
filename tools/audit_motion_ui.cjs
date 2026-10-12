@@ -1,6 +1,6 @@
 // 体感界面适配体检：在多种手机 / 平板尺寸下打开体感的每个界面，找出滚动条、出屏、被裁切的内容和太小的按钮，并截图
 // 用法：node tools/audit_motion_ui.cjs [ui|games] [视口名,视口名…]
-//   ui：大厅、选关、设置 5 步、介绍卡、游戏中、暂停、结算；games：9 个游戏各玩几秒截图
+//   ui：大厅、选关、设置 5 步、介绍卡、游戏中、暂停、结算；games：9 个游戏各玩几秒截图；life：签到 / 后台暂停 / 摄像头开关；tv：投屏铺满（16:9 画面）
 //   直接托管源码目录（需要 motion/vendor 已下载），截图在 /tmp/mg/audit/
 const path = require('path');
 const http = require('http');
@@ -109,6 +109,26 @@ async function run() {
       if (process.env.DUMP) console.log('    [dump]', await page.evaluate(process.env.DUMP).catch(e => e.message)); // 调试：DUMP='表达式' 每个界面打印一次
       await page.screenshot({ path: out + '/' + vn + '_' + name + '.png' });
     };
+    if (what === 'tv') {
+      // 投屏铺满：#app 变成居中 16:9，游戏画布跟着变
+      await page.evaluate(() => { document.querySelectorAll('#fx .modal-bg .mclose').forEach(b => b.click()); Motion.cfg.firstRun = false; Motion.Cursor.click = () => {}; Motion.UI.hub(); });
+      await page.waitForTimeout(2500);
+      await page.evaluate(() => Motion.UI.tvToggle(true)); await page.waitForTimeout(800); await page.screenshot({ path: out + '/' + vn + '_tv_nocast.png' });
+      await page.evaluate(() => Motion.UI.cast()); await page.waitForTimeout(800);
+      await page.screenshot({ path: out + '/' + vn + '_cast_off.png' });
+      await page.evaluate(() => document.querySelector('.m-ctog').click()); await page.waitForTimeout(1200);
+      await page.screenshot({ path: out + '/' + vn + '_cast_on.png' });
+      await page.evaluate(() => document.querySelector('.m-castl .m-x').click());
+      const area = () => page.evaluate(() => { const a = document.getElementById('app').getBoundingClientRect(), c = document.querySelector('.mg-stage canvas'); return { app: [a.left, a.top, a.width, a.height].map(Math.round), ratio: +(a.width / a.height).toFixed(3), canvas: c ? [c.clientWidth, c.clientHeight] : null, tv: document.documentElement.classList.contains('m-tvfill') }; });
+      console.log('[' + vn + '] 大厅 ' + JSON.stringify(await area())); await shot('tv_hub', 600);
+      await page.evaluate(() => Motion.play('beat', { zone: 'math', mode: 'std' })); await page.waitForFunction(() => document.querySelector('.mg-intro .go'), null, { timeout: 40000 });
+      await page.evaluate(() => document.querySelector('.mg-intro .go').click()); await page.waitForTimeout(7000);
+      console.log('[' + vn + '] 游戏 ' + JSON.stringify(await area())); await shot('tv_beat', 300);
+      await page.evaluate(() => App.hub()); await page.waitForTimeout(2500);
+      console.log('[' + vn + '] 回主地图 ' + JSON.stringify(await area()));
+      await page.evaluate(() => Motion.UI.tvToggle(false));
+      await ctx.close(); continue;
+    }
     if (what === 'ui') {
       await page.evaluate(() => Motion.UI.hub()); await shot('hub', 2500);
       await page.evaluate(() => Motion.UI.pick(Motion.gameById('dance'))); await shot('pick');

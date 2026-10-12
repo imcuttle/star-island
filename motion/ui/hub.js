@@ -58,12 +58,13 @@
         '<span class="m-stars">' + [0, 1, 2].map(i => '<i class="' + (i < (m.stars[g.id] || 0) ? 'on' : '') + '">★</i>').join('') + '</span></div></button>');
       el.innerHTML = '<div class="m-rotate"><i></i><b>把手机横过来玩</b></div><div class="m-bg"><i></i><i></i><i></i></div>' +
         '<div class="m-top"><button class="back" data-say="返回">' + U.E('⬅️') + '</button><div class="m-ttl">' + U.E('🕺') + '<b>体感乐园</b><small>边动边学 · 跳出屏幕的快乐</small></div><div class="m-chips"></div>' +
-        '<button class="btn m-setup-b" data-key="o" data-tip="体感设置：选摄像头、连手机、测试动作和语音">' + U.E('⚙️') + ' 体感设置</button><button class="btn ghost m-fs" data-key="f" data-tip="全屏">' + U.E('🖥️') + '</button></div>' +
+        '<button class="btn m-setup-b" data-key="o" data-tip="体感设置：选摄像头、连手机、测试动作和语音">' + U.E('⚙️') + ' 体感设置</button>' + (M.web ? '<button class="btn ghost m-cast-b" data-tip="投屏到电视：全屏、横屏、电视没有黑边">' + U.E('📺') + '<span> 投屏</span></button>' : '') + '<button class="btn ghost m-fs" data-key="f" data-tip="全屏">' + U.E('🖥️') + '</button></div>' +
         '<div class="m-main"><div class="m-side"><div class="m-prev"></div><div class="m-prev-tip"></div><div class="m-howto"><div><canvas data-move="cursor"></canvas><span>举起手当光标<br>停在卡片上就会选中</span></div><div><canvas data-move="armsX"></canvas><span>游戏中双手交叉<br>就能暂停</span></div></div></div>' +
         '<div class="m-gridw"><button class="m-hpg prev" data-say="上一页"><i>◀</i><small>上一页</small></button><div class="m-grid"><div class="m-htrack"></div></div><button class="m-hpg next" data-say="下一页"><i>▶</i><small>下一页</small></button><div class="m-hdots"></div></div></div>';
       el.querySelector('.back').onclick = () => { M.Cursor.enable(false); App.hub(); };
       el.querySelector('.m-setup-b').onclick = () => UI.setup();
       el.querySelector('.m-fs').onclick = () => M.fullscreen();
+      const cb = el.querySelector('.m-cast-b'); if (cb) cb.onclick = () => UI.cast();
       el.querySelector('.m-grid').onclick = e => { const c = e.target.closest('.m-card'); if (c && !(U.now() - (grid._swiped || 0) < 300)) UI.pick(M.gameById(c.dataset.g)); };
       const chips = el.querySelector('.m-chips'), tip = el.querySelector('.m-prev-tip');
       const upd = () => { chips.innerHTML = UI.chips(); Core.hydrate(chips); };
@@ -132,7 +133,7 @@
     const close = () => { stopP(); ft.stop(); sc.stop(); L.remove(); };
     L.querySelector('.m-x').onclick = close;
     L.addEventListener('pointerdown', e => { if (e.target === L) close(); });
-    L.querySelector('.go').onclick = () => { M.cfg.last = Object.assign({}, M.cfg.last, { [g.id]: st }); M.save(); close(); if (M.web && M.mobile) M.fullscreen(true); M.play(g.id, st); };
+    L.querySelector('.go').onclick = () => { M.cfg.last = Object.assign({}, M.cfg.last, { [g.id]: st }); M.save(); close(); UI.immerse(); M.play(g.id, st); };
     Core.Voice.say(g.name);
   };
 })();

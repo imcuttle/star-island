@@ -130,7 +130,7 @@
 
   /* ---------- 指针（鼠标 / 触屏） ---------- */
   const PAD = '.m-vpad, .mg-tl, .mg-pipw, .m-layer, .mg-tr button';
-  const toReach = e => ({ x: U.clamp(e.clientX / innerWidth, 0, 1), y: U.clamp(e.clientY / innerHeight, 0, 1) });
+  const toReach = e => { const a = M.UI && M.UI.area ? M.UI.area() : { left: 0, top: 0, width: innerWidth, height: innerHeight }; return { x: U.clamp((e.clientX - a.left) / a.width, 0, 1), y: U.clamp((e.clientY - a.top) / a.height, 0, 1) }; };
   const touches = new Map();
   const onPtr = e => {
     if (!V.inGame() || (e.target.closest && e.target.closest(PAD))) return;

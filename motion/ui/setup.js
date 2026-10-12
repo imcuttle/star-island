@@ -109,7 +109,7 @@
       '<div class="m-wsteps">' + (M.mobile ? [
         ['rot', '把手机<b>横过来</b>，用支架或靠着书本立在桌上，屏幕对着你'],
         ['dist', '往后退到<b>1.5 ~ 2 米</b>，从头到脚（至少上半身）都在画面里'],
-        ['cast', '想要大屏幕：用<b>投屏</b>（iPhone「屏幕镜像」/ 安卓「无线投屏」）投到电视上，手机继续当摄像头'],
+        ['cast', '想要大屏幕：<b>投屏</b>到电视，手机继续当摄像头；点下面「投屏指南」，电视上也能没有黑边'],
         ['awake', '插上充电器，打开声音；玩的时候屏幕会保持常亮'],
       ] : [
         ['cam', '摄像头放在屏幕正上方，对着你'],
@@ -118,6 +118,7 @@
       ]).map((s, i) => '<div class="m-ws" style="--d:' + i * .6 + 's"><div class="m-wsa a-' + s[0] + '"><i></i><b></b></div><span>' + s[1] + '</span></div>').join('') + '</div>' +
       '<div class="m-wnote">' + (M.wechat ? U.E('⚠️') + ' 在微信里可能打不开摄像头：点右上角「…」→「在浏览器打开」<br>' : '') +
       (M.ios ? U.E('🍎') + ' iPhone / iPad 请用 Safari 打开；第一次会弹出「允许使用摄像头」，点允许。也可以「添加到主屏幕」全屏玩' : U.E('🔒') + ' 第一次会弹出「允许使用摄像头 / 麦克风」，点允许。拒绝了的话：点地址栏左边的 🔒 →「网站设置」改成允许') + '</div></div></div>';
+    const cg = U.h('button', 'btn sm m-castg', U.E('📺') + ' 投屏指南（全屏 · 横屏 · 去黑边）'); cg.onclick = () => UI.cast(); el.querySelector('.m-wnote').before(cg); Core.hydrate(cg);
     const wsl = [...el.querySelectorAll('.m-ws')]; let wi = 0;
     const wdots = U.h('div', 'm-wdots', wsl.map(() => '<i></i>').join('')); el.querySelector('.m-wsteps').after(wdots);
     const rot = () => { wsl.forEach((s, i) => s.classList.toggle('cur', i === wi)); [...wdots.children].forEach((d, i) => d.classList.toggle('on', i === wi)); };

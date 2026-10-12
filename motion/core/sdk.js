@@ -192,7 +192,7 @@
     return w.firstChild;
   };
   SP.heard = function (text) { const e = this.el.querySelector('.mg-heard'); if (e) e.textContent = text ? '「' + text + '」' : ''; };
-  SP.right = function (x, y) { this.stats.correct++; Core.Audio2.sfx('right', .6); if (x != null) Core.UI.burst(x, y, '⭐', 10); };
+  SP.right = function (x, y) { this.stats.correct++; Core.Audio2.sfx('right', .6); if (x != null) { const r = this.stage.getBoundingClientRect(); x += r.left; y += r.top; } if (x != null) Core.UI.burst(x, y, '⭐', 10); };
   SP.wrong = function () { Core.Audio2.sfx('wrong', .5); M.Store.wrong(this); };
 
   // 屏幕中间的飘字：完美 / 跳！/ +100
@@ -286,7 +286,7 @@
     return new Promise(res => {
       let hold = 0, done = false;
       const go = () => { if (done) return; done = true; lp.stop(); stopP(); el.classList.add('out'); setTimeout(() => el.remove(), 300); M.Synth.sfx('go'); res(); };
-      el.querySelector('.go').onclick = go;
+      el.querySelector('.go').onclick = () => { M.UI.immerse(); go(); };
       const warn = el.querySelector('.mg-iwarn');
       const lp = M.loop(dt => {
         const ps = this.people();
@@ -331,13 +331,15 @@
     this._songs.forEach(s => s.playing && s.pause());
     if (this.def.onPause) this.def.onPause(this, true);
     const el = U.h('div', 'm-layer top mg-pausel' + (menu ? '' : ' mg-lost'));
-    el.innerHTML = menu ? '<div class="mg-pbox"><h2>' + U.E('⏸️') + ' 暂停中</h2><div class="mg-pbtns"><button class="btn big go m-resume">' + U.E('▶️') + ' 继续</button><button class="btn m-restart">' + U.E('🔁') + ' 重新开始</button><button class="btn ghost m-quit">' + U.E('🚪') + ' 退出</button></div><p>举起手用光标点按钮，也可以说「继续」</p></div>'
+    el.innerHTML = menu ? '<div class="mg-pbox"><h2>' + U.E('⏸️') + ' 暂停中</h2><div class="mg-pbtns"><button class="btn big go m-resume">' + U.E('▶️') + ' 继续</button><button class="btn m-restart">' + U.E('🔁') + ' 重新开始</button><button class="btn ghost m-quit">' + U.E('🚪') + ' 退出</button></div>' + (M.web ? '<div class="mg-pbtns sm">' + (M.UI.canFS() && M.UI.touch() && !M.UI.isFS() ? '<button class="btn ghost m-fsb">' + U.E('🖥️') + ' 全屏</button>' : '') + '<button class="btn ghost m-castb">' + U.E('📺') + ' 投屏</button></div>' : '') + '<p>举起手用光标点按钮，也可以说「继续」</p></div>'
       : '<div class="mg-pbox"><div class="mg-lostfig"><canvas data-move="wave"></canvas></div><h2>咦，你去哪儿啦？</h2><b>回到画面里就继续</b><div class="mg-pbtns"><button class="btn ghost m-quit">' + U.E('🚪') + ' 退出</button></div></div>';
     this.el.appendChild(el); Core.hydrate(el); M.UI.fit(el.querySelector('.mg-pbox')); this._pl = el; this._plStop = M.Puppet ? M.Puppet.mountAll(el) : null;
     const q = s => el.querySelector(s);
     if (q('.m-resume')) q('.m-resume').onclick = () => this.resume();
     if (q('.m-restart')) q('.m-restart').onclick = () => this.restart();
     q('.m-quit').onclick = () => this.quit();
+    if (q('.m-fsb')) q('.m-fsb').onclick = e => { M.UI.immerse(); e.currentTarget.remove(); };
+    if (q('.m-castb')) q('.m-castb').onclick = () => M.UI.cast();
     M.Cursor.setMode('on');
     if (menu && M.Ears.available()) this._pauseListen = M.Ears.listen({ choices: [{ t: '继续', alts: ['继续游戏', '开始'] }, { t: '退出', alts: ['不玩了'] }], onResult: r => { if (r.idx === 0) this.resume(); else if (r.idx === 1) this.quit(); } });
   };

@@ -35,7 +35,7 @@
       return l ? 'L' : r ? 'R' : null;
     },
     tick(dt, t) {
-      const W = innerWidth, H = innerHeight;
+      const ar = M.UI && M.UI.area ? M.UI.area() : { left: 0, top: 0, width: innerWidth, height: innerHeight }, W = ar.width, H = ar.height;
       const person = M.Tracker.main();
       const side = person && this.mode !== 'off' && !document.hidden && t - this.mouseT > 1500 ? this.pickHand(person) : null;
       if (side) {
@@ -44,7 +44,7 @@
         const cx = b.sh.x + (side === 'R' ? .55 : -.55) * T, cy = b.sh.y + .02 * T, hw = 1.0 * T, hh = hw * H / W * 1.1;
         let nx = .5 + (h.rawA.x - cx) / (2 * hw), ny = .5 + (h.rawA.y - cy) / (2 * hh);
         nx = U.clamp(nx, -.02, 1.02); ny = U.clamp(ny, -.02, 1.02);
-        let px = this.fx.f(nx * W, t), py = this.fy.f(ny * H, t);
+        let px = this.fx.f(ar.left + nx * W, t), py = this.fy.f(ar.top + ny * H, t);
         // 磁吸
         const tg = this.nearest(px, py, t);
         if (tg) { const r = tg.r, tx = r.left + r.width / 2, ty = r.top + r.height / 2; const inside = px > r.left && px < r.right && py > r.top && py < r.bottom; const k = inside ? .35 : .2; px += (tx - px) * k; py += (ty - py) * k; }
