@@ -5,3 +5,6 @@ node_modules/
 Thumbs.db
 motion/vendor/
 release/
+
+# 抖音推广片工程（含儿童实拍素材、录屏和成片）
+douyin-motion/
